@@ -125,6 +125,7 @@ builder.Services.AddScoped<NopSanPhamService>();
 builder.Services.AddScoped<HoiDongService>();
 builder.Services.AddScoped<KetQuaService>();
 builder.Services.AddScoped<XepGiaiService>();
+builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<AuthService>();
 
 // ========== CONTROLLERS & MUD BLAZOR ==========

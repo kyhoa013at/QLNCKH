@@ -77,7 +77,7 @@ namespace QLNCKH_HocVien.Client.Services
         public async Task<ApiResult> XoaNop(int id)
         {
             var response = await _http.DeleteAsyncWithAuth($"api/NopSanPham/{id}");
-            
+
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 throw new UnauthorizedException();
 

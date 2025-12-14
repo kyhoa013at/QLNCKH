@@ -76,30 +76,50 @@ namespace QLNCKH_HocVien.Controllers
         [HttpPost("soloai")]
         public async Task<ActionResult<ApiResult>> SaveSoLoai(KetQuaSoLoai item)
         {
-            if (item.IdChuyenDe <= 0)
-                return this.BadRequestResult("Chuyên đề không hợp lệ");
-
-            if (!ValidationHelper.IsValidScore(item.DiemSo))
-                return this.BadRequestResult("Điểm phải từ 0 đến 10");
-
-            if (!await _context.ChuyenDeNCKHs.AnyAsync(x => x.Id == item.IdChuyenDe))
-                return this.BadRequestResult("Chuyên đề không tồn tại");
-
-            var exists = await _context.KetQuaSoLoais.FirstOrDefaultAsync(x => x.IdChuyenDe == item.IdChuyenDe);
-            if (exists != null)
+            try
             {
-                exists.DiemSo = item.DiemSo;
-                exists.KetQua = item.KetQua;
-                exists.NhanXet = item.NhanXet?.Trim();
-            }
-            else
-            {
-                item.NhanXet = item.NhanXet?.Trim();
-                _context.KetQuaSoLoais.Add(item);
-            }
+                if (item == null)
+                    return this.BadRequestResult("Dữ liệu không hợp lệ");
 
-            await _context.SaveChangesAsync();
-            return this.OkResult("Lưu kết quả sơ loại thành công");
+                if (item.IdChuyenDe <= 0)
+                    return this.BadRequestResult("Chuyên đề không hợp lệ");
+
+                if (!ValidationHelper.IsValidScore(item.DiemSo))
+                    return this.BadRequestResult("Điểm phải từ 0 đến 10");
+
+                if (!await _context.ChuyenDeNCKHs.AnyAsync(x => x.Id == item.IdChuyenDe))
+                    return this.BadRequestResult("Chuyên đề không tồn tại");
+
+                var exists = await _context.KetQuaSoLoais
+                    .FirstOrDefaultAsync(x => x.IdChuyenDe == item.IdChuyenDe);
+
+                if (exists != null)
+                {
+                    // Update existing
+                    exists.DiemSo = item.DiemSo;
+                    exists.KetQua = item.KetQua;
+                    exists.NhanXet = string.IsNullOrWhiteSpace(item.NhanXet) ? null : item.NhanXet.Trim();
+                }
+                else
+                {
+                    // Create new - reset Id để EF Core tự generate
+                    var newItem = new KetQuaSoLoai
+                    {
+                        IdChuyenDe = item.IdChuyenDe,
+                        DiemSo = item.DiemSo,
+                        KetQua = item.KetQua,
+                        NhanXet = string.IsNullOrWhiteSpace(item.NhanXet) ? null : item.NhanXet.Trim()
+                    };
+                    _context.KetQuaSoLoais.Add(newItem);
+                }
+
+                await _context.SaveChangesAsync();
+                return this.OkResult("Lưu kết quả sơ loại thành công");
+            }
+            catch (Exception ex)
+            {
+                return this.BadRequestResult($"Lỗi khi lưu: {ex.Message}");
+            }
         }
 
         // POST: api/KetQua/auto-top15
@@ -117,9 +137,9 @@ namespace QLNCKH_HocVien.Controllers
             // 3. Group theo lĩnh vực và lấy Top 15
             var listPass = listDiem
                 .GroupBy(x => x.IdLinhVuc)
-                .SelectMany(g => g.OrderByDescending(x => x.kq.DiemSo).Take(15))
-                .Select(x => x.kq)
-                .ToList();
+                                   .SelectMany(g => g.OrderByDescending(x => x.kq.DiemSo).Take(15))
+                                   .Select(x => x.kq)
+                                   .ToList();
 
             // 4. Update trạng thái
             foreach (var item in listPass) item.KetQua = true;
@@ -191,37 +211,55 @@ namespace QLNCKH_HocVien.Controllers
         [HttpPost("phieucham")]
         public async Task<ActionResult<ApiResult>> SavePhieuCham(PhieuCham pc)
         {
-            if (pc.IdChuyenDe <= 0)
-                return this.BadRequestResult("Chuyên đề không hợp lệ");
-
-            if (pc.IdGiaoVien <= 0)
-                return this.BadRequestResult("Giáo viên không hợp lệ");
-
-            if (!ValidationHelper.IsValidScore(pc.Diem))
-                return this.BadRequestResult("Điểm phải từ 0 đến 10");
-
-            if (!await _context.ChuyenDeNCKHs.AnyAsync(x => x.Id == pc.IdChuyenDe))
-                return this.BadRequestResult("Chuyên đề không tồn tại");
-
-            if (!await _context.GiaoViens.AnyAsync(x => x.Id == pc.IdGiaoVien))
-                return this.BadRequestResult("Giáo viên không tồn tại");
-
-            var exists = await _context.PhieuChams
-                .FirstOrDefaultAsync(x => x.IdChuyenDe == pc.IdChuyenDe && x.IdGiaoVien == pc.IdGiaoVien);
-
-            if (exists != null)
+            try
             {
-                exists.Diem = pc.Diem;
-                exists.YKien = pc.YKien?.Trim();
-            }
-            else
-            {
-                pc.YKien = pc.YKien?.Trim();
-                _context.PhieuChams.Add(pc);
-            }
+                if (pc == null)
+                    return this.BadRequestResult("Dữ liệu không hợp lệ");
 
-            await _context.SaveChangesAsync();
-            return this.OkResult("Lưu phiếu chấm thành công");
+                if (pc.IdChuyenDe <= 0)
+                    return this.BadRequestResult("Chuyên đề không hợp lệ");
+
+                if (pc.IdGiaoVien <= 0)
+                    return this.BadRequestResult("Giáo viên không hợp lệ");
+
+                if (!ValidationHelper.IsValidScore(pc.Diem))
+                    return this.BadRequestResult("Điểm phải từ 0 đến 10");
+
+                if (!await _context.ChuyenDeNCKHs.AnyAsync(x => x.Id == pc.IdChuyenDe))
+                    return this.BadRequestResult("Chuyên đề không tồn tại");
+
+                if (!await _context.GiaoViens.AnyAsync(x => x.Id == pc.IdGiaoVien))
+                    return this.BadRequestResult("Giáo viên không tồn tại");
+
+                var exists = await _context.PhieuChams
+                    .FirstOrDefaultAsync(x => x.IdChuyenDe == pc.IdChuyenDe && x.IdGiaoVien == pc.IdGiaoVien);
+
+                if (exists != null)
+                {
+                    // Update existing
+                    exists.Diem = pc.Diem;
+                    exists.YKien = string.IsNullOrWhiteSpace(pc.YKien) ? null : pc.YKien.Trim();
+                }
+                else
+                {
+                    // Create new - reset Id để EF Core tự generate
+                    var newItem = new PhieuCham
+                    {
+                        IdChuyenDe = pc.IdChuyenDe,
+                        IdGiaoVien = pc.IdGiaoVien,
+                        Diem = pc.Diem,
+                        YKien = string.IsNullOrWhiteSpace(pc.YKien) ? null : pc.YKien.Trim()
+                    };
+                    _context.PhieuChams.Add(newItem);
+                }
+
+                await _context.SaveChangesAsync();
+                return this.OkResult("Lưu phiếu chấm thành công");
+            }
+            catch (Exception ex)
+            {
+                return this.BadRequestResult($"Lỗi khi lưu: {ex.Message}");
+            }
         }
 
         // DELETE: api/KetQua/phieucham/5

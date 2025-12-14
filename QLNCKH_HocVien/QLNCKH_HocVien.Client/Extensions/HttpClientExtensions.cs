@@ -16,7 +16,12 @@ namespace QLNCKH_HocVien.Client.Extensions
             if (response.StatusCode == HttpStatusCode.Unauthorized)
                 throw new UnauthorizedException();
             
-            response.EnsureSuccessStatusCode();
+            if (!response.IsSuccessStatusCode)
+            {
+                // Không throw exception, trả về null để service có thể xử lý
+                return default(T);
+            }
+            
             return await response.Content.ReadFromJsonAsync<T>();
         }
 

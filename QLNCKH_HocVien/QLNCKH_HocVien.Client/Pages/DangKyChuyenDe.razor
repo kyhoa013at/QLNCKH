@@ -1,179 +1,493 @@
 @page "/dangkychuyende"
-
+@using MudBlazor
 @using QLNCKH_HocVien.Client.Models
 @using QLNCKH_HocVien.Client.Services
+@using QLNCKH_HocVien.Client.Exceptions
+@using QLNCKH_HocVien.Client.Shared
 @inject ChuyenDeNCKHService CdService
-@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
-<h3 class="text-info fw-bold mb-4"><i class="bi bi-journal-text"></i> �ANG K� CHUY�N �? NCKH</h3>
+<PageHeader Title="ĐĂNG KÝ CHUYÊN ĐỀ NCKH" 
+            Subtitle="Đăng ký và quản lý chuyên đề nghiên cứu khoa học" 
+            Icon="@Icons.Material.Filled.Assignment">
+    <MudButton Variant="Variant.Filled" 
+               Color="Color.Surface" 
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenAddDialog"
+               Disabled="@_isLoading">
+        Đăng ký chuyên đề
+    </MudButton>
+</PageHeader>
 
-@if (!string.IsNullOrEmpty(msgError))
-{
-    <div class="alert alert-danger">@msgError</div>
-}
-
-<div class="row">
-    <div class="col-md-4">
-        <div class="card shadow-sm">
-            <div class="card-header bg-info text-white">Th�ng tin dang k�</div>
-            <div class="card-body">
-                <EditForm Model="@cd" OnValidSubmit="Save">
-                    <DataAnnotationsValidator />
-
-                    <div class="mb-3">
-                        <label class="form-label">M� chuy�n d? (*)</label>
-                        <InputText @bind-Value="cd.MaSoCD" class="form-control" placeholder="VD: C�-2024-01" />
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">T�n chuy�n d? (*)</label>
-                        <InputTextArea @bind-Value="cd.TenChuyenDe" class="form-control" rows="3" />
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">H?c vi�n th?c hi?n (*)</label>
-                        <InputSelect @bind-Value="cd.IdHocVien" class="form-select">
-                            <option value="">-- Ch?n H?c vi�n --</option>
-                            @foreach (var sv in dsSinhVien)
-                            {
-                                <option value="@sv.Id">@sv.MaSV - @sv.HoTen</option>
-                            }
-                        </InputSelect>
-                        @if (cd.IdHocVien != null)
-                        {
-                            var svChon = dsSinhVien.FirstOrDefault(x => x.Id == cd.IdHocVien);
-                            <div class="mt-2 p-2 bg-light rounded small border">
-                                <strong>Th�ng tin:</strong><br />
-                                L?p: @svChon?.Lop <br />
-                                Ng�nh: @(dsNganh.FirstOrDefault(n => n.IdLVNganh == svChon?.IdNganh)?.TenLVNganh ?? "Chua c?p nh?t")
-                            </div>
-                        }
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Linh v?c nghi�n c?u</label>
-                        <InputSelect @bind-Value="cd.IdLinhVuc" class="form-select">
-                            <option value="">-- Ch?n Linh v?c --</option>
-                            @foreach (var lv in dsLinhVuc)
-                            {
-                                <option value="@lv.Id">@lv.Ten</option>
-                            }
-                        </InputSelect>
-                    </div>
-
-                    <button type="submit" class="btn btn-info text-white w-100"><i class="bi bi-plus-circle"></i> �ang K�</button>
-                </EditForm>
-            </div>
-        </div>
+<MudPaper Elevation="2" Class="pa-4">
+    @* Search Bar *@
+    <div class="d-flex gap-3 mb-4 flex-wrap">
+        <MudTextField @bind-Value="_searchText"
+                      Placeholder="Tìm kiếm theo mã CD, tên chuyên đề, học viên..."
+                      Variant="Variant.Outlined"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true"
+                      DebounceInterval="500"
+                      OnDebounceIntervalElapsed="OnSearchChanged"
+                      Style="max-width: 400px;"
+                      Class="flex-grow-1" />
+        
+        <MudSelect T="int?" 
+                   Value="_selectedLinhVuc"
+                   Label="Lĩnh vực"
+                   Variant="Variant.Outlined"
+                   Clearable="true"
+                   Style="width: 200px;"
+                   ValueChanged="@(async (int? lv) => await OnLinhVucChanged(lv))">
+            <MudSelectItem Value="@((int?)null)">Tất cả</MudSelectItem>
+            @foreach (var lv in _dsLinhVuc)
+            {
+                <MudSelectItem T="int?" Value="@lv.Id">@lv.Ten</MudSelectItem>
+            }
+        </MudSelect>
+        
+        <MudSelect T="int" 
+                   Value="_pageSize" 
+                   Label="Hiển thị"
+                   Variant="Variant.Outlined"
+                   Style="width: 120px;"
+                   ValueChanged="@(async (int size) => await OnPageSizeChanged(size))">
+            <MudSelectItem Value="5">5 / trang</MudSelectItem>
+            <MudSelectItem Value="10">10 / trang</MudSelectItem>
+            <MudSelectItem Value="25">25 / trang</MudSelectItem>
+            <MudSelectItem Value="50">50 / trang</MudSelectItem>
+        </MudSelect>
     </div>
 
-    <div class="col-md-8">
-        <div class="card shadow-sm">
-            <div class="card-header">Danh s�ch chuy�n d? d� dang k�</div>
-            <div class="card-body">
-                <table class="table table-bordered table-striped align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>M� C�</th>
-                            <th>T�n Chuy�n d?</th>
-                            <th style="width: 30%">H?c vi�n th?c hi?n</th>
-                            <th>Linh v?c</th>
-                            <th>X�a</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in dsChuyenDe)
-                        {
-                            // L?y th�ng tin sinh vi�n t? ID
-                            var sv = dsSinhVien.FirstOrDefault(s => s.Id == item.IdHocVien);
-                            var tenNganh = dsNganh.FirstOrDefault(n => n.IdLVNganh == sv?.IdNganh)?.TenLVNganh;
-                            var tenLinhVuc = dsLinhVuc.FirstOrDefault(l => l.Id == item.IdLinhVuc)?.Ten;
+    @* Data Table *@
+    @if (_isLoading && _chuyenDes.Count == 0)
+    {
+        <TableSkeleton Rows="5" Columns="6" />
+    }
+    else
+    {
+        <MudTable Items="@_chuyenDes" 
+                  Hover="true" 
+                  Striped="true"
+                  Dense="true"
+                  Loading="@_isLoading"
+                  LoadingProgressColor="Color.Primary"
+                  Elevation="0"
+                  Class="mb-4">
+            <HeaderContent>
+                <MudTh Style="width: 60px;">STT</MudTh>
+                <MudTh>Mã CD</MudTh>
+                <MudTh>Tên chuyên đề</MudTh>
+                <MudTh>Học viên thực hiện</MudTh>
+                <MudTh>Lĩnh vực</MudTh>
+                <MudTh Style="width: 150px;">Thao tác</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="STT" Style="text-align: center;">
+                    @((_currentPage - 1) * _pageSize + _chuyenDes.IndexOf(context) + 1)
+                </MudTd>
+                <MudTd DataLabel="Mã CD">
+                    <MudChip T="string" Color="Color.Primary" Size="Size.Small">@context.MaSoCD</MudChip>
+                </MudTd>
+                <MudTd DataLabel="Tên chuyên đề">
+                    <MudText Typo="Typo.body2" Style="font-weight: 500;">@context.TenChuyenDe</MudText>
+                </MudTd>
+                <MudTd DataLabel="Học viên">
+                    @{
+                        var sv = _dsSinhVien.FirstOrDefault(s => s.Id == context.IdHocVien);
+                        var tenNganh = _dsNganh.FirstOrDefault(n => n.IdLVNganh == sv?.IdNganh)?.TenLVNganh ?? "-";
+                    }
+                    @if (sv != null)
+                    {
+                        <div>
+                            <MudText Typo="Typo.body2" Style="font-weight: 500;">@sv.HoTen</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @sv.Lop - @tenNganh
+                            </MudText>
+                        </div>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Error">Không tìm thấy SV</MudText>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Lĩnh vực">
+                    @(_dsLinhVuc.FirstOrDefault(l => l.Id == context.IdLinhVuc)?.Ten ?? "-")
+                </MudTd>
+                <MudTd DataLabel="Thao tác">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                   Color="Color.Primary" 
+                                   Size="Size.Small"
+                                   OnClick="@(() => OpenEditDialog(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                   Color="Color.Error" 
+                                   Size="Size.Small"
+                                   OnClick="@(() => ConfirmDelete(context))" />
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudAlert Severity="Severity.Info" Class="my-4">
+                    @if (string.IsNullOrEmpty(_searchText) && !_selectedLinhVuc.HasValue)
+                    {
+                        <span>Chưa có chuyên đề nào được đăng ký</span>
+                    }
+                    else
+                    {
+                        <span>Không tìm thấy chuyên đề phù hợp</span>
+                    }
+                </MudAlert>
+            </NoRecordsContent>
+        </MudTable>
 
-                            <tr>
-                                <td class="fw-bold text-primary">@item.MaSoCD</td>
-                                <td>@item.TenChuyenDe</td>
-                                <td>
-                                    @if (sv != null)
-                                    {
-                                        <span class="fw-bold">@sv.HoTen</span>
-                                
-                                        <br />
-                                        <small class="text-muted">
-                                            @sv.Lop - @tenNganh
-                                        </small>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-danger">Kh�ng t�m th?y SV</span>
-                                    }
-                                </td>
-                                <td>@tenLinhVuc</td>
-                                <td>
-                                    <button class="btn btn-danger btn-sm" @onclick="() => Delete(item.Id)">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+        @* Pagination *@
+        <div class="d-flex justify-space-between align-center flex-wrap gap-2">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Hiển thị @((_currentPage - 1) * _pageSize + 1) - @Math.Min(_currentPage * _pageSize, _totalCount) 
+                trong tổng số @_totalCount chuyên đề
+            </MudText>
+            
+            <MudPagination Count="@_totalPages" 
+                          Selected="@_currentPage"
+                          ShowFirstButton="true"
+                          ShowLastButton="true"
+                          Color="Color.Primary"
+                          Variant="Variant.Outlined"
+                          SelectedChanged="@(async (int page) => await OnPageChanged(page))" />
         </div>
-    </div>
-</div>
+    }
+</MudPaper>
+
+@* Add/Edit Dialog *@
+<MudDialog @bind-Visible="_showFormDialog" Options="@_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(_isEditMode ? Icons.Material.Filled.Edit : Icons.Material.Filled.Assignment)" Class="mr-2" />
+            @(_isEditMode ? "Cập nhật chuyên đề" : "Đăng ký chuyên đề mới")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_formIsValid">
+            <MudGrid Spacing="3">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_chuyenDeForm.MaSoCD"
+                                  Label="Mã chuyên đề *"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="Vui lòng nhập mã chuyên đề"
+                                  Placeholder="VD: CD-2024-01"
+                                  Disabled="@_isEditMode" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?" 
+                               @bind-Value="_chuyenDeForm.IdHocVien"
+                               Label="Học viên thực hiện *"
+                               Variant="Variant.Outlined"
+                               Required="true"
+                               RequiredError="Vui lòng chọn học viên">
+                        @foreach (var sv in _dsSinhVien)
+                        {
+                            <MudSelectItem T="int?" Value="@sv.Id">@sv.MaSV - @sv.HoTen</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_chuyenDeForm.TenChuyenDe"
+                                  Label="Tên chuyên đề *"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="Vui lòng nhập tên chuyên đề"
+                                  Lines="3" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="int?" 
+                               @bind-Value="_chuyenDeForm.IdLinhVuc"
+                               Label="Lĩnh vực nghiên cứu"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        @foreach (var lv in _dsLinhVuc)
+                        {
+                            <MudSelectItem T="int?" Value="@lv.Id">@lv.Ten</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                @if (_chuyenDeForm.IdHocVien.HasValue)
+                {
+                    var svChon = _dsSinhVien.FirstOrDefault(x => x.Id == _chuyenDeForm.IdHocVien);
+                    var tenNganh = _dsNganh.FirstOrDefault(n => n.IdLVNganh == svChon?.IdNganh)?.TenLVNganh ?? "Chưa cập nhật";
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Info" Dense="true">
+                            <strong>Thông tin học viên:</strong><br />
+                            Lớp: @svChon?.Lop<br />
+                            Ngành: @tenNganh
+                        </MudAlert>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseFormDialog" Disabled="@_isSaving">Hủy</MudButton>
+        <MudButton Color="Color.Primary" 
+                   Variant="Variant.Filled"
+                   OnClick="SaveChuyenDe"
+                   Disabled="@(!_formIsValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Đang lưu...</span>
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Save" Class="mr-1" />
+                <span>Lưu</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
-    private ChuyenDeNCKH cd = new();
-    private List<ChuyenDeNCKH> dsChuyenDe = new();
-    private string? msgError;
+    // Data
+    private List<ChuyenDeNCKH> _chuyenDes = new();
+    private List<SinhVien> _dsSinhVien = new();
+    private List<LinhVucDeTai> _dsLinhVuc = new();
+    private List<Nganh> _dsNganh = new();
 
-    // Danh s�ch tham chi?u
-    private List<SinhVien> dsSinhVien = new();
-    private List<LinhVucDeTai> dsLinhVuc = new();
-    private List<Nganh> dsNganh = new();
+    // Pagination
+    private int _currentPage = 1;
+    private int _pageSize = 10;
+    private int _totalCount = 0;
+    private int _totalPages => (int)Math.Ceiling(_totalCount / (double)_pageSize);
+
+    // Search & Filter
+    private string _searchText = "";
+    private int? _selectedLinhVuc = null;
+
+    // Form
+    private ChuyenDeNCKH _chuyenDeForm = new();
+    private bool _showFormDialog = false;
+    private bool _isEditMode = false;
+    private bool _formIsValid = false;
+    private bool _isSaving = false;
+    private MudForm? _form;
+
+    // Loading
+    private bool _isLoading = false;
+
+    // Dialog options
+    private DialogOptions _dialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Medium,
+        FullWidth = true,
+        CloseOnEscapeKey = true,
+        BackdropClick = false
+    };
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            var t1 = CdService.LayDsSinhVien();
-            var t2 = CdService.LayDsLinhVuc();
-            var t3 = CdService.LayDsNganh();
-            var t4 = CdService.LayDsChuyenDe();
+            // Load catalogs in parallel
+            var tasks = new[]
+            {
+                LoadCatalogAsync(async () => _dsSinhVien = await CdService.LayDsSinhVien()),
+                LoadCatalogAsync(async () => _dsLinhVuc = await CdService.LayDsLinhVuc()),
+                LoadCatalogAsync(async () => _dsNganh = await CdService.LayDsNganh())
+            };
+            await Task.WhenAll(tasks);
 
-            await Task.WhenAll(t1, t2, t3, t4);
-
-            dsSinhVien = t1.Result;
-            dsLinhVuc = t2.Result;
-            dsNganh = t3.Result;
-            dsChuyenDe = t4.Result;
+            // Load data
+            await LoadDataAsync();
         }
-        catch (Exception ex)
+        catch (UnauthorizedException)
         {
-            msgError = "L?i t?i d? li?u: " + ex.Message;
+            Navigation.NavigateTo("/access-denied", forceLoad: true);
         }
     }
 
-    private async Task Save()
+    private async Task LoadCatalogAsync(Func<Task> action)
     {
-        msgError = null;
+        try { await action(); } catch { }
+    }
+
+    private async Task LoadDataAsync()
+    {
         try
         {
-            await CdService.ThemChuyenDe(cd);
-            cd = new ChuyenDeNCKH(); // Reset form
-            dsChuyenDe = await CdService.LayDsChuyenDe(); // Refresh list
+            _isLoading = true;
+            StateHasChanged();
+
+            var result = await CdService.LayDanhSachPhanTrang(_currentPage, _pageSize, _searchText, _selectedLinhVuc);
+            _chuyenDes = result.Data ?? new List<ChuyenDeNCKH>();
+            _totalCount = result.TotalCount;
+        }
+        catch (UnauthorizedException)
+        {
+            Navigation.NavigateTo("/access-denied", forceLoad: true);
         }
         catch (Exception ex)
         {
-            msgError = ex.Message;
+            Snackbar.Add($"Lỗi tải dữ liệu: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
         }
     }
 
-    private async Task Delete(int id)
+    private async Task OnSearchChanged(string value)
     {
-        if (!await JS.InvokeAsync<bool>("confirm", "B?n c� ch?c mu?n x�a chuy�n d? n�y?")) return;
+        _searchText = value;
+        _currentPage = 1;
+        await LoadDataAsync();
+    }
 
-        await CdService.XoaChuyenDe(id);
-        dsChuyenDe = await CdService.LayDsChuyenDe();
+    private async Task OnLinhVucChanged(int? linhVuc)
+    {
+        _selectedLinhVuc = linhVuc;
+        _currentPage = 1;
+        await LoadDataAsync();
+    }
+
+    private async Task OnPageChanged(int page)
+    {
+        _currentPage = page;
+        await LoadDataAsync();
+    }
+
+    private async Task OnPageSizeChanged(int size)
+    {
+        _pageSize = size;
+        _currentPage = 1;
+        await LoadDataAsync();
+    }
+
+    private void OpenAddDialog()
+    {
+        _chuyenDeForm = new ChuyenDeNCKH();
+        _isEditMode = false;
+        _showFormDialog = true;
+    }
+
+    private void OpenEditDialog(ChuyenDeNCKH cd)
+    {
+        _chuyenDeForm = new ChuyenDeNCKH
+        {
+            Id = cd.Id,
+            MaSoCD = cd.MaSoCD,
+            TenChuyenDe = cd.TenChuyenDe,
+            IdHocVien = cd.IdHocVien,
+            IdLinhVuc = cd.IdLinhVuc
+        };
+        _isEditMode = true;
+        _showFormDialog = true;
+    }
+
+    private void CloseFormDialog()
+    {
+        if (!_isSaving)
+        {
+            _showFormDialog = false;
+        }
+    }
+
+    private async Task SaveChuyenDe()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+            if (!_formIsValid) return;
+        }
+
+        try
+        {
+            _isSaving = true;
+
+            if (_isEditMode)
+            {
+                var result = await CdService.CapNhatChuyenDe(_chuyenDeForm);
+                if (result.Success)
+                {
+                    Snackbar.Add("Cập nhật chuyên đề thành công!", Severity.Success);
+                    _showFormDialog = false;
+                    await LoadDataAsync();
+                }
+                else
+                {
+                    Snackbar.Add(result.Message, Severity.Error);
+                }
+            }
+            else
+            {
+                var result = await CdService.ThemChuyenDe(_chuyenDeForm);
+                if (result.Success)
+                {
+                    Snackbar.Add("Đăng ký chuyên đề thành công!", Severity.Success);
+                    _showFormDialog = false;
+                    await LoadDataAsync();
+                }
+                else
+                {
+                    Snackbar.Add(result.Message, Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task ConfirmDelete(ChuyenDeNCKH cd)
+    {
+        var parameters = new DialogParameters
+        {
+            ["ContentText"] = $"Bạn có chắc chắn muốn xóa chuyên đề '{cd.TenChuyenDe}' ({cd.MaSoCD})?",
+            ["ConfirmText"] = "Xóa",
+            ["Icon"] = Icons.Material.Filled.DeleteForever,
+            ["IconColor"] = Color.Error
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Xác nhận xóa", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await DeleteChuyenDe(cd.Id);
+        }
+    }
+
+    private async Task DeleteChuyenDe(int id)
+    {
+        try
+        {
+            _isLoading = true;
+            var result = await CdService.XoaChuyenDe(id);
+            
+            if (result.Success)
+            {
+                Snackbar.Add("Xóa chuyên đề thành công!", Severity.Success);
+                await LoadDataAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.Message, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi xóa: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 }

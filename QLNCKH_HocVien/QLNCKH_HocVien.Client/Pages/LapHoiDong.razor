@@ -1,273 +1,481 @@
 @page "/laphoidong"
-
+@using MudBlazor
 @using QLNCKH_HocVien.Client.Models
 @using QLNCKH_HocVien.Client.Services
+@using QLNCKH_HocVien.Client.Exceptions
+@using QLNCKH_HocVien.Client.Shared
 @inject HoiDongService HdService
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
-<h3 class="text-danger fw-bold mb-4"><i class="bi bi-people-fill"></i> L?P H?I �?NG CH?M</h3>
+<PageHeader Title="LẬP HỘI ĐỒNG CHẤM" 
+            Subtitle="Phân công người chấm và thành lập hội đồng chấm" 
+            Icon="@Icons.Material.Filled.Groups">
+</PageHeader>
 
-@if (!string.IsNullOrEmpty(msgError)) { <div class="alert alert-danger">@msgError</div> }
-
-<ul class="nav nav-tabs mb-3">
-    <li class="nav-item">
-        <button class="nav-link @(vongHienTai == VongCham.SoLoai ? " active fw-bold" : "" )"
-                @onclick="() => ChuyenVong(VongCham.SoLoai)">
-            V�ng So Lo?i (1 ngu?i)
-        </button>
-    </li>
-    <li class="nav-item">
-        <button class="nav-link @(vongHienTai == VongCham.ChungKhao ? " active fw-bold" : "" )"
-                @onclick="() => ChuyenVong(VongCham.ChungKhao)">
-            V�ng Chung Kh?o (H?i d?ng)
-        </button>
-    </li>
-</ul>
+<MudPaper Elevation="2" Class="pa-4 mb-4">
+    <MudTabs ActivePanelIndex="_activeTabIndex" 
+             ActivePanelIndexChanged="@((int idx) => { _activeTabIndex = idx; ChuyenVong(idx == 0 ? VongCham.SoLoai : VongCham.ChungKhao); })"
+             Variant="Variant.Pills" 
+             Color="Color.Primary" 
+             Class="mb-4">
+        <MudTabPanel Text="Vòng Sơ Loại (1 người)">
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                Phân công 1 giáo viên chấm sơ loại cho từng chuyên đề
+            </MudText>
+        </MudTabPanel>
+        <MudTabPanel Text="Vòng Chung Khảo (Hội đồng)">
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                Thành lập hội đồng chấm với nhiều thành viên (Chủ tịch, Thư ký, Ủy viên)
+            </MudText>
+        </MudTabPanel>
+    </MudTabs>
+</MudPaper>
 
 <div class="row">
     <div class="col-md-5">
-        <div class="card border-danger shadow-sm">
-            <div class="card-header bg-danger text-white">
-                @(vongHienTai == VongCham.SoLoai ? "Ph�n c�ng Ngu?i ch?m so lo?i" : "Th�nh l?p H?i d?ng Chung kh?o")
-            </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label">Ch?n Chuy�n d? (*)</label>
-                    <select class="form-select" @bind="hdMoi.IdChuyenDe">
-                        <option value="0">-- Ch?n Chuy�n d? --</option>
-                        @foreach(var cd in dsChuyenDe)
-                        {
-                        <option value="@cd.Id">@cd.MaSoCD - @cd.TenChuyenDe</option>
-                        }
-                    </select>
-                </div>
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-4">
+                @(_vongHienTai == VongCham.SoLoai ? "Phân công Người chấm sơ loại" : "Thành lập Hội đồng Chung khảo")
+            </MudText>
 
-                <div class="mb-3">
-                    <label class="form-label">Ng�y ch?m</label>
-                    <input type="date" class="form-control" @bind="hdMoi.NgayCham" />
-                </div>
+            <MudForm @ref="_form" @bind-IsValid="@_formIsValid">
+                <MudGrid Spacing="3">
+                    <MudItem xs="12">
+                        <MudSelect T="int" 
+                                   @bind-Value="_hdMoi.IdChuyenDe"
+                                   Label="Chọn chuyên đề *"
+                                   Variant="Variant.Outlined"
+                                   Required="true"
+                                   RequiredError="Vui lòng chọn chuyên đề">
+                            <MudSelectItem Value="0">-- Chọn chuyên đề --</MudSelectItem>
+                            @foreach (var cd in _dsChuyenDe)
+                            {
+                                <MudSelectItem Value="@cd.Id">@cd.MaSoCD - @cd.TenChuyenDe</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
 
-                @if(vongHienTai == VongCham.ChungKhao)
-                {
-                <div class="mb-3">
-                    <label class="form-label">�?a di?m</label>
-                    <input type="text" class="form-control" @bind="hdMoi.DiaDiem" placeholder="Ph�ng h?p..." />
-                </div>
-                }
+                    <MudItem xs="12">
+                        <MudDatePicker Date="_hdMoi.NgayCham"
+                                       DateChanged="@((DateTime? date) => _hdMoi.NgayCham = date ?? DateTime.Now)"
+                                       Label="Ngày chấm"
+                                       Variant="Variant.Outlined"
+                                       DateFormat="dd/MM/yyyy" />
+                    </MudItem>
 
-                <hr />
-                <h6 class="text-danger">Th�nh vi�n:</h6>
-
-                @if(vongHienTai == VongCham.SoLoai)
-                {
-                <div class="mb-2">
-                    <label>Ngu?i ch?m (*)</label>
-                    <select class="form-select" @bind="idGvSoLoai">
-                        <option value="0">-- Ch?n Gi�o vi�n --</option>
-                        @foreach(var gv in dsGiaoVien) {
-                        <option value="@gv.Id">@gv.MaSoCB - @gv.HoTen</option> }
-                    </select>
-                </div>
-                }
-                else
-                {
-                <div class="input-group mb-2">
-                    <select class="form-select" @bind="idGvTam">
-                        <option value="0">-- Ch?n th�nh vi�n --</option>
-                        @foreach(var gv in dsGiaoVien) {
-                        <option value="@gv.Id">@gv.HoTen</option> }
-                    </select>
-                    <select class="form-select" style="max-width: 120px;" @bind="vaiTroTam">
-                        <option>Ch? t?ch</option>
-                        <option>Thu k�</option>
-                        <option>?y vi�n</option>
-                    </select>
-                    <button class="btn btn-outline-secondary" type="button" @onclick="ThemThanhVien">Th�m</button>
-                </div>
-
-                <ul class="list-group mb-3">
-                    @foreach(var tv in hdMoi.ThanhViens)
+                    @if (_vongHienTai == VongCham.ChungKhao)
                     {
-                    var gv = dsGiaoVien.FirstOrDefault(x => x.Id == tv.IdGiaoVien);
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><b>@gv?.HoTen</b> (@tv.VaiTro)</span>
-                        <button class="btn btn-sm btn-close" @onclick="() => hdMoi.ThanhViens.Remove(tv)"></button>
-                    </li>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_hdMoi.DiaDiem"
+                                          Label="Địa điểm"
+                                          Variant="Variant.Outlined"
+                                          Placeholder="Phòng họp..." />
+                        </MudItem>
                     }
-                </ul>
-                }
 
-                <button class="btn btn-danger w-100 mt-3" @onclick="LuuHoiDong">
-                    <i class="bi bi-check-circle"></i> X�c nh?n Ph�n c�ng
-                </button>
+                    <MudItem xs="12">
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Thành viên:</MudText>
+                    </MudItem>
+
+                    @if (_vongHienTai == VongCham.SoLoai)
+                    {
+                        <MudItem xs="12">
+                            <MudSelect T="int" 
+                                       @bind-Value="_idGvSoLoai"
+                                       Label="Người chấm *"
+                                       Variant="Variant.Outlined"
+                                       Required="true"
+                                       RequiredError="Vui lòng chọn người chấm">
+                                <MudSelectItem Value="0">-- Chọn giáo viên --</MudSelectItem>
+                                @foreach (var gv in _dsGiaoVien)
+                                {
+                                    <MudSelectItem Value="@gv.Id">@gv.MaSoCB - @gv.HoTen</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                    }
+                    else
+                    {
+                        <MudItem xs="12">
+                            <div class="d-flex gap-2">
+                                <MudSelect T="int" 
+                                           @bind-Value="_idGvTam"
+                                           Label="Chọn thành viên"
+                                           Variant="Variant.Outlined"
+                                           Style="flex: 1;">
+                                    <MudSelectItem Value="0">-- Chọn giáo viên --</MudSelectItem>
+                                    @foreach (var gv in _dsGiaoVien)
+                                    {
+                                        <MudSelectItem Value="@gv.Id">@gv.HoTen</MudSelectItem>
+                                    }
+                                </MudSelect>
+                                <MudSelect T="string"
+                                           @bind-Value="_vaiTroTam"
+                                           Label="Vai trò"
+                                           Variant="Variant.Outlined"
+                                           Style="width: 150px;">
+                                    <MudSelectItem T="string" Value="@("Chủ tịch")">Chủ tịch</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("Thư ký")">Thư ký</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("Ủy viên")">Ủy viên</MudSelectItem>
+                                </MudSelect>
+                                <MudButton Variant="Variant.Outlined" 
+                                           Color="Color.Primary"
+                                           OnClick="ThemThanhVien"
+                                           StartIcon="@Icons.Material.Filled.Add"
+                                           Style="align-self: flex-end;">
+                                    Thêm
+                                </MudButton>
+                            </div>
+                        </MudItem>
+
+                        <MudItem xs="12">
+                            @if (_hdMoi.ThanhViens.Count > 0)
+                            {
+                                <MudList T="ThanhVienHoiDong" Dense="true">
+                                    @foreach (var tv in _hdMoi.ThanhViens)
+                                    {
+                                        var gv = _dsGiaoVien.FirstOrDefault(x => x.Id == tv.IdGiaoVien);
+                                        <MudListItem T="ThanhVienHoiDong" Value="@tv">
+                                            <div class="d-flex justify-space-between align-center" style="width: 100%;">
+                                                <div>
+                                                    <MudText Typo="Typo.body2" Style="font-weight: 500;">@gv?.HoTen</MudText>
+                                                    <MudChip T="string" Color="Color.Primary" Size="Size.Small">@tv.VaiTro</MudChip>
+                                                </div>
+                                                <MudIconButton Icon="@Icons.Material.Filled.Close" 
+                                                               Color="Color.Error" 
+                                                               Size="Size.Small"
+                                                               OnClick="@(() => _hdMoi.ThanhViens.Remove(tv))" />
+                                            </div>
+                                        </MudListItem>
+                                    }
+                                </MudList>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Warning" Dense="true">
+                                    Chưa có thành viên nào. Vui lòng thêm ít nhất 1 thành viên.
+                                </MudAlert>
+                            }
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudForm>
+
+            <div class="mt-4">
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           OnClick="LuuHoiDong"
+                           Disabled="@(!_formIsValid || _isSaving)"
+                           StartIcon="@Icons.Material.Filled.CheckCircle">
+                    @if (_isSaving)
+                    {
+                        <span>Đang lưu...</span>
+                    }
+                    else
+                    {
+                        <span>Xác nhận Phân công</span>
+                    }
+                </MudButton>
             </div>
-        </div>
+        </MudPaper>
     </div>
 
     <div class="col-md-7">
-        <div class="card">
-            <div class="card-header">Danh s�ch ph�n c�ng (@vongHienTai)</div>
-            <div class="card-body">
-                <table class="table table-bordered table-sm">
-                    <thead class="table-light">
-                        <tr>
-                            <th>M� C�</th>
-                            <th>T�n Chuy�n �?</th>
-                            <th>Ng�y ch?m</th>
-                            <th>Ngu?i ch?m / H?i d?ng</th>
-                            <th>X�a</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach(var item in dsHoiDong.Where(x => x.VongThi == vongHienTai))
-                        {
-                        var cd = dsChuyenDe.FirstOrDefault(x => x.Id == item.IdChuyenDe);
-                        <tr>
-                            <td>@cd?.MaSoCD</td>
-                            <td>@cd?.TenChuyenDe</td>
-                            <td>@item.NgayCham.ToString("dd/MM/yyyy")</td>
-                            <td>
-                                <ul class="list-unstyled mb-0 small">
-                                    @foreach(var tv in item.ThanhViens)
-                                    {
-                                    var gv = dsGiaoVien.FirstOrDefault(x => x.Id == tv.IdGiaoVien);
-                                    // S? d?ng IdDonViCongTac v� danh s�ch ToChuc
-                                    var dv = dsToChuc?.FirstOrDefault(d => d.Id == gv?.IdDonViCongTac)?.Ten ?? "Chua c?p nh?t";
-                                    var cv = dsChucVu?.FirstOrDefault(c => c.IdChucVu == gv?.IdChucVu)?.TenChucVu ?? "Chua c?p nh?t";
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-4">
+                Danh sách phân công (@(_vongHienTai == VongCham.SoLoai ? "Vòng Sơ Loại" : "Vòng Chung Khảo"))
+            </MudText>
 
-                                    <li>
-                                        @if(vongHienTai == VongCham.SoLoai)
-                                        {
-                                        <strong>@gv?.HoTen</strong> <br />
-                                        <span class="text-muted">(@dv - @cv)</span>
-                                        }
-                                        else
-                                        {
-                                        <span>- @gv?.HoTen (@tv.VaiTro)</span>
-                                        }
-                                    </li>
+            @if (_isLoading && _dsHoiDong.Count == 0)
+            {
+                <TableSkeleton Rows="5" Columns="5" />
+            }
+            else
+            {
+                var hoiDongFiltered = _dsHoiDong.Where(x => x.VongThi == _vongHienTai).ToList();
+                @if (hoiDongFiltered.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Info">
+                        Chưa có phân công nào cho vòng này
+                    </MudAlert>
+                }
+                else
+                {
+                    <MudTable Items="@hoiDongFiltered" 
+                              Hover="true" 
+                              Striped="true"
+                              Dense="true"
+                              Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Mã CD</MudTh>
+                            <MudTh>Tên chuyên đề</MudTh>
+                            <MudTh>Ngày chấm</MudTh>
+                            <MudTh>Người chấm / Hội đồng</MudTh>
+                            <MudTh Style="width: 100px;">Thao tác</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            @{
+                                var cd = _dsChuyenDe.FirstOrDefault(x => x.Id == context.IdChuyenDe);
+                            }
+                            <MudTd DataLabel="Mã CD">
+                                <MudChip T="string" Color="Color.Primary" Size="Size.Small">@cd?.MaSoCD</MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Tên chuyên đề">
+                                <MudText Typo="Typo.body2">@cd?.TenChuyenDe</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Ngày chấm">
+                                @context.NgayCham.ToString("dd/MM/yyyy")
+                            </MudTd>
+                            <MudTd DataLabel="Người chấm / Hội đồng">
+                                <MudList T="ThanhVienHoiDong" Dense="true" Style="max-height: 200px; overflow-y: auto;">
+                                    @foreach (var tv in context.ThanhViens)
+                                    {
+                                        var gv = _dsGiaoVien.FirstOrDefault(x => x.Id == tv.IdGiaoVien);
+                                        var dv = _dsToChuc?.FirstOrDefault(d => d.Id == gv?.IdDonViCongTac)?.Ten ?? "Chưa cập nhật";
+                                        var cv = _dsChucVu?.FirstOrDefault(c => c.IdChucVu == gv?.IdChucVu)?.TenChucVu ?? "Chưa cập nhật";
+
+                                        <MudListItem T="ThanhVienHoiDong" Value="@tv">
+                                            @if (_vongHienTai == VongCham.SoLoai)
+                                            {
+                                                <div>
+                                                    <MudText Typo="Typo.body2" Style="font-weight: 500;">@gv?.HoTen</MudText>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@dv - @cv</MudText>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div>
+                                                    <MudText Typo="Typo.body2" Style="font-weight: 500;">@gv?.HoTen</MudText>
+                                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@tv.VaiTro</MudChip>
+                                                </div>
+                                            }
+                                        </MudListItem>
                                     }
-                                </ul>
-                            </td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-danger" @onclick="()=>Xoa(item.Id)">X�a</button>
-                            </td>
-                        </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                                </MudList>
+                            </MudTd>
+                            <MudTd DataLabel="Thao tác">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                               Color="Color.Error" 
+                                               Size="Size.Small"
+                                               OnClick="@(() => ConfirmDelete(context))" />
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            }
+        </MudPaper>
     </div>
 </div>
 
 @code {
-    private VongCham vongHienTai = VongCham.SoLoai;
-    private HoiDong hdMoi = new();
-    private List<HoiDong>
-    dsHoiDong = new();
-    private string? msgError;
-
-    private int idGvSoLoai = 0;
-    private int idGvTam = 0;
-    private string vaiTroTam = "?y vi�n";
-
-    private List<ChuyenDeNCKH>
-        dsChuyenDe = new();
-        private List<GiaoVien>
-            dsGiaoVien = new();
-
-            // �?i CapDonVi th�nh ToChuc
-            private List<ToChuc>
-                dsToChuc = new();
-                private List<ChucVu>
-                    dsChucVu = new();
-
-                    protected override async Task OnInitializedAsync()
-                    {
-                    try
-                    {
-                    var t1 = HdService.LayDsChuyenDe();
-                    var t2 = HdService.LayDsGiaoVien();
-                    var t3 = HdService.LayDsHoiDong();
-                    var t4 = HdService.LayDsToChuc(); // G?i h�m m?i
-                    var t5 = HdService.LayDsChucVu();
-
-                    await Task.WhenAll(t1, t2, t3, t4, t5);
-                    dsChuyenDe = t1.Result;
-                    dsGiaoVien = t2.Result;
-                    dsHoiDong = t3.Result;
-                    dsToChuc = t4.Result; // G�n v�o list ToChuc
-                    dsChucVu = t5.Result;
-                    }
-                    catch(Exception ex)
-                    {
-                    msgError = "L?i load: " + ex.Message;
-                    }
-                    }
-
-                    private void ChuyenVong(VongCham v)
-                    {
-                    vongHienTai = v;
-                    hdMoi = new HoiDong { VongThi = v };
-                    idGvSoLoai = 0;
-                    msgError = null;
-                    }
-
-                    private void ThemThanhVien()
-                    {
-                    if (idGvTam == 0) return;
-                    if (hdMoi.ThanhViens.Any(x => x.IdGiaoVien == idGvTam)) return;
-
-                    hdMoi.ThanhViens.Add(new ThanhVienHoiDong
-                    {
-                    IdGiaoVien = idGvTam,
-                    VaiTro = vaiTroTam
-                    });
-                    }
-
-                    private async Task LuuHoiDong()
-                    {
-                    if (hdMoi.IdChuyenDe == 0) { msgError = "Chua ch?n chuy�n d?"; return; }
-
-                    if (vongHienTai == VongCham.SoLoai)
-                    {
-                    if (idGvSoLoai == 0) { msgError = "Chua ch?n ngu?i ch?m so lo?i"; return; }
-                    hdMoi.ThanhViens.Clear();
-                    hdMoi.ThanhViens.Add(new ThanhVienHoiDong { IdGiaoVien = idGvSoLoai, VaiTro = "Ngu?i ch?m" });
-                    }
-                    else
-                    {
-                    if (hdMoi.ThanhViens.Count == 0) { msgError = "H?i d?ng ph?i c� �t nh?t 1 th�nh vi�n"; return; }
-                    }
-
-                    try
-                    {
-                    await HdService.TaoHoiDong(hdMoi);
-                    dsHoiDong = await HdService.LayDsHoiDong();
-                    ChuyenVong(vongHienTai);
-                    msgError = null;
-                    }
-                    catch(Exception ex)
-                    {
-                    msgError = ex.Message;
-                    }
-                    }
-
-                    private async Task Xoa(int id)
-                    {
-                        if(!await JS.InvokeAsync<bool>("confirm", "B?n mu?n x�a ph�n c�ng n�y?")) return;
+    private VongCham _vongHienTai = VongCham.SoLoai;
+    private HoiDong _hdMoi = new();
+    private List<HoiDong> _dsHoiDong = new();
     
-                        msgError = null; // Reset th�ng b�o l?i cu
-                        try 
-                        {
-                            await HdService.XoaHoiDong(id);
-                            dsHoiDong = await HdService.LayDsHoiDong(); // T?i l?i danh s�ch m?i
-                        }
-                        catch (Exception ex)
-                        {
-                            msgError = ex.Message; // Hi?n l?i d? l�n m�n h�nh
-                        }
-                    }
+    private int _idGvSoLoai = 0;
+    private int _idGvTam = 0;
+    private string _vaiTroTam = "Ủy viên";
+    
+    private List<ChuyenDeNCKH> _dsChuyenDe = new();
+    private List<GiaoVien> _dsGiaoVien = new();
+    private List<ToChuc> _dsToChuc = new();
+    private List<ChucVu> _dsChucVu = new();
 
-            [Inject] IJSRuntime JS { get; set; }
+    private bool _isLoading = false;
+    private bool _isSaving = false;
+    private bool _formIsValid = false;
+    private MudForm? _form;
+    private int _activeTabIndex = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var tasks = new[]
+            {
+                LoadCatalogAsync(async () => _dsChuyenDe = await HdService.LayDsChuyenDe()),
+                LoadCatalogAsync(async () => _dsGiaoVien = await HdService.LayDsGiaoVien()),
+                LoadCatalogAsync(async () => _dsToChuc = await HdService.LayDsToChuc()),
+                LoadCatalogAsync(async () => _dsChucVu = await HdService.LayDsChucVu())
+            };
+            await Task.WhenAll(tasks);
+
+            await LoadDataAsync();
+        }
+        catch (UnauthorizedException)
+        {
+            Navigation.NavigateTo("/access-denied", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi tải dữ liệu: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadCatalogAsync(Func<Task> action)
+    {
+        try { await action(); } catch { }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            _dsHoiDong = await HdService.LayDsHoiDong();
+        }
+        catch (UnauthorizedException)
+        {
+            Navigation.NavigateTo("/access-denied", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+
+    private void ChuyenVong(VongCham v)
+    {
+        _vongHienTai = v;
+        _hdMoi = new HoiDong { VongThi = v };
+        _idGvSoLoai = 0;
+        _idGvTam = 0;
+        _vaiTroTam = "Ủy viên";
+        StateHasChanged();
+    }
+
+    private void ThemThanhVien()
+    {
+        if (_idGvTam == 0) return;
+        if (_hdMoi.ThanhViens.Any(x => x.IdGiaoVien == _idGvTam))
+        {
+            Snackbar.Add("Giáo viên này đã được thêm vào hội đồng!", Severity.Warning);
+            return;
+        }
+
+        _hdMoi.ThanhViens.Add(new ThanhVienHoiDong
+        {
+            IdGiaoVien = _idGvTam,
+            VaiTro = _vaiTroTam
+        });
+        _idGvTam = 0;
+        _vaiTroTam = "Ủy viên";
+        StateHasChanged();
+    }
+
+    private async Task LuuHoiDong()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+            if (!_formIsValid) return;
+        }
+
+        if (_hdMoi.IdChuyenDe == 0)
+        {
+            Snackbar.Add("Chưa chọn chuyên đề!", Severity.Warning);
+            return;
+        }
+
+        if (_vongHienTai == VongCham.SoLoai)
+        {
+            if (_idGvSoLoai == 0)
+            {
+                Snackbar.Add("Chưa chọn người chấm sơ loại!", Severity.Warning);
+                return;
+            }
+            _hdMoi.ThanhViens.Clear();
+            _hdMoi.ThanhViens.Add(new ThanhVienHoiDong { IdGiaoVien = _idGvSoLoai, VaiTro = "Người chấm" });
+        }
+        else
+        {
+            if (_hdMoi.ThanhViens.Count == 0)
+            {
+                Snackbar.Add("Hội đồng phải có ít nhất 1 thành viên!", Severity.Warning);
+                return;
+            }
+        }
+
+        try
+        {
+            _isSaving = true;
+            var result = await HdService.TaoHoiDong(_hdMoi);
+            
+            if (result.Success)
+            {
+                Snackbar.Add("Phân công thành công!", Severity.Success);
+                await LoadDataAsync();
+                ChuyenVong(_vongHienTai);
+            }
+            else
+            {
+                Snackbar.Add(result.Message, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task ConfirmDelete(HoiDong hd)
+    {
+        var cd = _dsChuyenDe.FirstOrDefault(x => x.Id == hd.IdChuyenDe);
+        var parameters = new DialogParameters
+        {
+            ["ContentText"] = $"Bạn có chắc chắn muốn xóa phân công cho chuyên đề '{cd?.TenChuyenDe}'?",
+            ["ConfirmText"] = "Xóa",
+            ["Icon"] = Icons.Material.Filled.DeleteForever,
+            ["IconColor"] = Color.Error
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Xác nhận xóa", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await DeleteHoiDong(hd.Id);
+        }
+    }
+
+    private async Task DeleteHoiDong(int id)
+    {
+        try
+        {
+            _isLoading = true;
+            var result = await HdService.XoaHoiDong(id);
+            
+            if (result.Success)
+            {
+                Snackbar.Add("Xóa phân công thành công!", Severity.Success);
+                await LoadDataAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.Message, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi xóa: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
 }

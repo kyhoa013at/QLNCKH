@@ -1,113 +1,454 @@
 @page "/xepgiai"
-
+@using MudBlazor
 @using QLNCKH_HocVien.Client.Models
 @using QLNCKH_HocVien.Client.Services
+@using QLNCKH_HocVien.Client.Exceptions
+@using QLNCKH_HocVien.Client.Shared
 @inject XepGiaiService XgService
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3 class="text-danger fw-bold"><i class="bi bi-trophy-fill"></i> B?NG X?P H?NG & TRAO GI?I</h3>
-    <button class="btn btn-warning fw-bold" @onclick="XuLyXepGiai">
-        <i class="bi bi-arrow-repeat"></i> T?ng h?p & X?p gi?i
-    </button>
-</div>
+<PageHeader Title="BẢNG XẾP HẠNG & TRAO GIẢI" 
+            Subtitle="Xem và quản lý kết quả xếp hạng chuyên đề nghiên cứu khoa học" 
+            Icon="@Icons.Material.Filled.EmojiEvents">
+    <MudButton Variant="Variant.Filled" 
+               Color="Color.Warning" 
+               StartIcon="@Icons.Material.Filled.AutoAwesome"
+               OnClick="XuLyXepGiai"
+               Disabled="@_isProcessing">
+        @if (_isProcessing)
+        {
+            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            <span>Đang xử lý...</span>
+        }
+        else
+        {
+            <span>Tổng hợp & Xếp giải</span>
+        }
+    </MudButton>
+    <MudButton Variant="Variant.Outlined" 
+               Color="Color.Error" 
+               StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="ConfirmReset"
+               Disabled="@(_isProcessing || _dsKetQua.Count == 0)">
+        Reset kết quả
+    </MudButton>
+</PageHeader>
 
-@if (!string.IsNullOrEmpty(msgError)) { <div class="alert alert-danger">@msgError</div> }
-
-<div class="card shadow border-warning">
-    <div class="card-body p-0">
-        <table class="table table-hover table-striped mb-0 align-middle">
-            <thead class="bg-warning text-dark">
-                <tr>
-                    <th>H?ng</th>
-                    <th>Gi?i Thu?ng</th>
-                    <th>M� C�</th>
-                    <th>T�n Chuy�n �?</th>
-                    <th>�i?m TB</th>
-                    <th>H?c vi�n th?c hi?n</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in dsKetQua)
-                {
-                    var cd = dsChuyenDe.FirstOrDefault(x => x.Id == item.IdChuyenDe);
-                    var sv = dsSinhVien.FirstOrDefault(s => s.Id == cd?.IdHocVien);
-                    var nganh = dsNganh.FirstOrDefault(n => n.IdLVNganh == sv?.IdNganh)?.TenLVNganh;
-
-                    <tr class="@GetRowClass(item.TenGiai)">
-                        <td class="fw-bold text-center">#@item.XepHang</td>
-                        <td>
-                            @if(item.TenGiai.Contains("Nh?t")) { <i class="bi bi-star-fill text-warning"></i> }
-                            <span class="fw-bold">@item.TenGiai</span>
-                        </td>
-                        <td>@cd?.MaSoCD</td>
-                        <td>@cd?.TenChuyenDe</td>
-                        <td class="fw-bold text-danger text-center">@item.DiemTrungBinh</td>
-                        <td>
-                            @if(sv != null)
-                            {
-                                <strong>@sv.HoTen</strong> <br/>
-                                <small class="text-muted">@sv.Lop - @nganh</small>
-                            }
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+<MudPaper Elevation="2" Class="pa-4">
+    @* Filter Bar *@
+    <div class="d-flex gap-3 mb-4 flex-wrap">
+        <MudTextField @bind-Value="_searchText"
+                      Placeholder="Tìm kiếm theo mã CD, tên chuyên đề, giải thưởng..."
+                      Variant="Variant.Outlined"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true"
+                      DebounceInterval="500"
+                      OnDebounceIntervalElapsed="OnSearchChanged"
+                      Style="max-width: 400px;"
+                      Class="flex-grow-1" />
+        
+        <MudSelect T="string?" 
+                   Value="_selectedGiai"
+                   Label="Giải thưởng"
+                   Variant="Variant.Outlined"
+                   Clearable="true"
+                   Style="width: 200px;"
+                   ValueChanged="@(async (string? giai) => await OnGiaiChanged(giai))">
+            <MudSelectItem T="string?" Value="@((string?)null)">Tất cả</MudSelectItem>
+            <MudSelectItem T="string?" Value="@("Giải Nhất")">Giải Nhất</MudSelectItem>
+            <MudSelectItem T="string?" Value="@("Giải Nhì")">Giải Nhì</MudSelectItem>
+            <MudSelectItem T="string?" Value="@("Giải Ba")">Giải Ba</MudSelectItem>
+            <MudSelectItem T="string?" Value="@("Khuyến khích")">Khuyến khích</MudSelectItem>
+            <MudSelectItem T="string?" Value="@("Không đạt")">Không đạt</MudSelectItem>
+        </MudSelect>
+        
+        <MudSelect T="int" 
+                   Value="_pageSize" 
+                   Label="Hiển thị"
+                   Variant="Variant.Outlined"
+                   Style="width: 120px;"
+                   ValueChanged="@(async (int size) => await OnPageSizeChanged(size))">
+            <MudSelectItem Value="10">10 / trang</MudSelectItem>
+            <MudSelectItem Value="25">25 / trang</MudSelectItem>
+            <MudSelectItem Value="50">50 / trang</MudSelectItem>
+            <MudSelectItem Value="100">100 / trang</MudSelectItem>
+        </MudSelect>
     </div>
-</div>
+
+    @* Summary Stats *@
+    @if (_dsKetQua.Count > 0)
+    {
+        <MudGrid Spacing="3" Class="mb-4">
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="1" Class="pa-3 text-center" Style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);">
+                    <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Size="Size.Large" Style="color: white;" />
+                    <MudText Typo="Typo.h6" Style="color: white; font-weight: 600; margin-top: 8px;">
+                        @_dsKetQua.Count(x => x.TenGiai.Contains("Nhất"))
+                    </MudText>
+                    <MudText Typo="Typo.body2" Style="color: rgba(255,255,255,0.9);">Giải Nhất</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="1" Class="pa-3 text-center" Style="background: linear-gradient(135deg, #C0C0C0 0%, #808080 100%);">
+                    <MudIcon Icon="@Icons.Material.Filled.WorkspacePremium" Size="Size.Large" Style="color: white;" />
+                    <MudText Typo="Typo.h6" Style="color: white; font-weight: 600; margin-top: 8px;">
+                        @_dsKetQua.Count(x => x.TenGiai.Contains("Nhì"))
+                    </MudText>
+                    <MudText Typo="Typo.body2" Style="color: rgba(255,255,255,0.9);">Giải Nhì</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="1" Class="pa-3 text-center" Style="background: linear-gradient(135deg, #CD7F32 0%, #8B4513 100%);">
+                    <MudIcon Icon="@Icons.Material.Filled.MilitaryTech" Size="Size.Large" Style="color: white;" />
+                    <MudText Typo="Typo.h6" Style="color: white; font-weight: 600; margin-top: 8px;">
+                        @_dsKetQua.Count(x => x.TenGiai.Contains("Ba"))
+                    </MudText>
+                    <MudText Typo="Typo.body2" Style="color: rgba(255,255,255,0.9);">Giải Ba</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="1" Class="pa-3 text-center" Style="background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Style="color: white;" />
+                    <MudText Typo="Typo.h6" Style="color: white; font-weight: 600; margin-top: 8px;">
+                        @_dsKetQua.Count(x => !x.TenGiai.Contains("Không đạt"))
+                    </MudText>
+                    <MudText Typo="Typo.body2" Style="color: rgba(255,255,255,0.9);">Tổng có giải</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+
+    @* Data Table *@
+    @if (_isLoading && _dsKetQua.Count == 0)
+    {
+        <TableSkeleton Rows="5" Columns="6" />
+    }
+    else if (_filteredKetQua.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Class="my-4">
+            @if (string.IsNullOrEmpty(_searchText) && string.IsNullOrEmpty(_selectedGiai))
+            {
+                <span>Chưa có kết quả xếp giải. Hãy nhấn "Tổng hợp & Xếp giải" để tính toán.</span>
+            }
+            else
+            {
+                <span>Không tìm thấy kết quả phù hợp</span>
+            }
+        </MudAlert>
+    }
+    else
+    {
+        <MudTable Items="@_filteredKetQua" 
+                  Hover="true" 
+                  Striped="true"
+                  Dense="true"
+                  Loading="@_isLoading"
+                  LoadingProgressColor="Color.Primary"
+                  Elevation="0"
+                  Class="mb-4">
+            <HeaderContent>
+                <MudTh Style="width: 80px;">Hạng</MudTh>
+                <MudTh Style="width: 150px;">Giải thưởng</MudTh>
+                <MudTh>Mã CD</MudTh>
+                <MudTh>Tên chuyên đề</MudTh>
+                <MudTh Style="width: 120px;">Điểm TB</MudTh>
+                <MudTh>Học viên thực hiện</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                @{
+                    var cd = _dsChuyenDe.FirstOrDefault(x => x.Id == context.IdChuyenDe);
+                    var sv = _dsSinhVien.FirstOrDefault(s => s.Id == cd?.IdHocVien);
+                    var nganh = _dsNganh.FirstOrDefault(n => n.IdLVNganh == sv?.IdNganh)?.TenLVNganh;
+                    var giaiColor = GetGiaiColor(context.TenGiai);
+                    var giaiIcon = GetGiaiIcon(context.TenGiai);
+                }
+                <MudTd DataLabel="Hạng">
+                    <MudChip T="string" 
+                             Color="@(context.XepHang <= 3 ? Color.Warning : Color.Default)" 
+                             Size="Size.Medium"
+                             Style="font-weight: 600; font-size: 1.1em;">
+                        #@context.XepHang
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Giải thưởng">
+                    <MudChip T="string" 
+                             Color="@giaiColor" 
+                             Size="Size.Medium"
+                             Icon="@giaiIcon"
+                             Style="font-weight: 600;">
+                        @context.TenGiai
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Mã CD">
+                    <MudChip T="string" Color="Color.Primary" Size="Size.Small">@cd?.MaSoCD</MudChip>
+                </MudTd>
+                <MudTd DataLabel="Tên chuyên đề">
+                    <MudText Typo="Typo.body2" Style="font-weight: 500;">@cd?.TenChuyenDe</MudText>
+                </MudTd>
+                <MudTd DataLabel="Điểm TB">
+                    <MudChip T="string" 
+                             Color="@(context.DiemTrungBinh >= 8 ? Color.Success : context.DiemTrungBinh >= 6 ? Color.Warning : Color.Error)" 
+                             Size="Size.Small"
+                             Icon="@Icons.Material.Filled.Star">
+                        @context.DiemTrungBinh.ToString("0.00")
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Học viên">
+                    @if (sv != null)
+                    {
+                        <div>
+                            <MudText Typo="Typo.body2" Style="font-weight: 500;">@sv.HoTen</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @sv.Lop - @nganh
+                            </MudText>
+                        </div>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Error">Không tìm thấy</MudText>
+                    }
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+
+        @* Pagination *@
+        <div class="d-flex justify-space-between align-center flex-wrap gap-2">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Hiển thị @((_currentPage - 1) * _pageSize + 1) - @Math.Min(_currentPage * _pageSize, _filteredKetQua.Count) 
+                trong tổng số @_filteredKetQua.Count kết quả
+            </MudText>
+            
+            <MudPagination Count="@_totalPages" 
+                          Selected="@_currentPage"
+                          ShowFirstButton="true"
+                          ShowLastButton="true"
+                          Color="Color.Primary"
+                          Variant="Variant.Outlined"
+                          SelectedChanged="@(async (int page) => await OnPageChanged(page))" />
+        </div>
+    }
+</MudPaper>
 
 @code {
-    private List<XepGiai> dsKetQua = new();
-    private List<ChuyenDeNCKH> dsChuyenDe = new();
-    private List<SinhVien> dsSinhVien = new();
-    private List<Nganh> dsNganh = new();
-    private string? msgError;
+    private List<XepGiai> _dsKetQua = new();
+    private List<ChuyenDeNCKH> _dsChuyenDe = new();
+    private List<SinhVien> _dsSinhVien = new();
+    private List<Nganh> _dsNganh = new();
+
+    // Pagination
+    private int _currentPage = 1;
+    private int _pageSize = 25;
+    private int _totalPages => (int)Math.Ceiling(_filteredKetQua.Count / (double)_pageSize);
+
+    // Search & Filter
+    private string _searchText = "";
+    private string? _selectedGiai = null;
+
+    // Loading
+    private bool _isLoading = false;
+    private bool _isProcessing = false;
+
+    // Filtered data
+    private List<XepGiai> _filteredKetQua => GetFilteredData();
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadData();
+        try
+        {
+            await LoadData();
+        }
+        catch (UnauthorizedException)
+        {
+            Navigation.NavigateTo("/access-denied", forceLoad: true);
+        }
     }
 
     private async Task LoadData()
     {
         try
         {
+            _isLoading = true;
+            StateHasChanged();
+
             var t1 = XgService.LayKetQua();
             var t2 = XgService.LayDsChuyenDe();
             var t3 = XgService.LayDsSinhVien();
             var t4 = XgService.LayDsNganh();
 
             await Task.WhenAll(t1, t2, t3, t4);
-            dsKetQua = t1.Result;
-            dsChuyenDe = t2.Result;
-            dsSinhVien = t3.Result;
-            dsNganh = t4.Result;
+
+            _dsKetQua = t1.Result.OrderBy(x => x.XepHang).ToList();
+            _dsChuyenDe = t2.Result;
+            _dsSinhVien = t3.Result;
+            _dsNganh = t4.Result;
         }
-        catch(Exception ex)
+        catch (UnauthorizedException)
         {
-            msgError = ex.Message;
+            Navigation.NavigateTo("/access-denied", forceLoad: true);
         }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi tải dữ liệu: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private List<XepGiai> GetFilteredData()
+    {
+        var result = _dsKetQua.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(_searchText))
+        {
+            var searchLower = _searchText.ToLower();
+            result = result.Where(x =>
+            {
+                var cd = _dsChuyenDe.FirstOrDefault(c => c.Id == x.IdChuyenDe);
+                return cd != null && (
+                    cd.MaSoCD.ToLower().Contains(searchLower) ||
+                    cd.TenChuyenDe.ToLower().Contains(searchLower) ||
+                    x.TenGiai.ToLower().Contains(searchLower)
+                );
+            });
+        }
+
+        if (!string.IsNullOrEmpty(_selectedGiai))
+        {
+            result = result.Where(x => x.TenGiai == _selectedGiai);
+        }
+
+        return result.Skip((_currentPage - 1) * _pageSize).Take(_pageSize).ToList();
+    }
+
+    private async Task OnSearchChanged(string value)
+    {
+        _searchText = value;
+        _currentPage = 1;
+        StateHasChanged();
+    }
+
+    private async Task OnGiaiChanged(string? giai)
+    {
+        _selectedGiai = giai;
+        _currentPage = 1;
+        StateHasChanged();
+    }
+
+    private async Task OnPageChanged(int page)
+    {
+        _currentPage = page;
+        StateHasChanged();
+    }
+
+    private async Task OnPageSizeChanged(int size)
+    {
+        _pageSize = size;
+        _currentPage = 1;
+        StateHasChanged();
     }
 
     private async Task XuLyXepGiai()
     {
+        var parameters = new DialogParameters
+        {
+            ["ContentText"] = "Bạn có chắc chắn muốn tổng hợp và xếp giải lại? Hành động này sẽ tính toán lại điểm trung bình và xếp hạng cho tất cả chuyên đề.",
+            ["ConfirmText"] = "Xác nhận",
+            ["Icon"] = Icons.Material.Filled.AutoAwesome,
+            ["IconColor"] = Color.Warning
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Xác nhận tổng hợp", parameters, options);
+        var result = await dialog.Result;
+
+        if (result == null || result.Canceled) return;
+
         try
         {
-            await XgService.TuDongXepGiai();
-            await LoadData(); // Refresh l?i b?ng sau khi t�nh to�n
+            _isProcessing = true;
+            var apiResult = await XgService.TuDongXepGiai();
+            
+            if (apiResult.Success)
+            {
+                Snackbar.Add("Tổng hợp và xếp giải thành công!", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add(apiResult.Message, Severity.Error);
+            }
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
-            msgError = "L?i t�nh to�n: " + ex.Message;
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
         }
     }
 
-    // Helper t?o m�u n?n cho t?ng lo?i gi?i
-    private string GetRowClass(string tenGiai)
+    private async Task ConfirmReset()
     {
-        if (tenGiai.Contains("Nh?t")) return "table-warning"; // V�ng
-        if (tenGiai.Contains("Nh�")) return "table-primary"; // Xanh duong nh?t
-        if (tenGiai.Contains("Ba")) return "table-success"; // Xanh l�
-        return "";
+        var parameters = new DialogParameters
+        {
+            ["ContentText"] = "Bạn có chắc chắn muốn reset tất cả kết quả xếp giải? Hành động này không thể hoàn tác!",
+            ["ConfirmText"] = "Reset",
+            ["Icon"] = Icons.Material.Filled.Warning,
+            ["IconColor"] = Color.Error
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Xác nhận reset", parameters, options);
+        var result = await dialog.Result;
+
+        if (result == null || result.Canceled) return;
+
+        try
+        {
+            _isProcessing = true;
+            var apiResult = await XgService.ResetKetQua();
+            
+            if (apiResult.Success)
+            {
+                Snackbar.Add("Reset kết quả thành công!", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add(apiResult.Message, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private Color GetGiaiColor(string tenGiai)
+    {
+        if (tenGiai.Contains("Nhất")) return Color.Warning;
+        if (tenGiai.Contains("Nhì")) return Color.Info;
+        if (tenGiai.Contains("Ba")) return Color.Success;
+        if (tenGiai.Contains("Khuyến khích")) return Color.Default;
+        return Color.Error;
+    }
+
+    private string GetGiaiIcon(string tenGiai)
+    {
+        if (tenGiai.Contains("Nhất")) return Icons.Material.Filled.EmojiEvents;
+        if (tenGiai.Contains("Nhì")) return Icons.Material.Filled.WorkspacePremium;
+        if (tenGiai.Contains("Ba")) return Icons.Material.Filled.MilitaryTech;
+        if (tenGiai.Contains("Khuyến khích")) return Icons.Material.Filled.CheckCircle;
+        return Icons.Material.Filled.Cancel;
     }
 }

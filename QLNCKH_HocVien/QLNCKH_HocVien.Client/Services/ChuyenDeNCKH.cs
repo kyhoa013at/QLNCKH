@@ -76,7 +76,7 @@ namespace QLNCKH_HocVien.Client.Services
         /// </summary>
         public async Task<ApiResult> CapNhatChuyenDe(ChuyenDeNCKH cd)
         {
-            var response = await _http.PutAsJsonAsync($"api/ChuyenDeNCKH/{cd.Id}", cd);
+            var response = await _http.PutAsJsonAsyncWithAuth($"api/ChuyenDeNCKH/{cd.Id}", cd);
             
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 throw new UnauthorizedException();
@@ -95,7 +95,7 @@ namespace QLNCKH_HocVien.Client.Services
         public async Task<ApiResult> XoaChuyenDe(int id)
         {
             var response = await _http.DeleteAsyncWithAuth($"api/ChuyenDeNCKH/{id}");
-            
+
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 throw new UnauthorizedException();
 

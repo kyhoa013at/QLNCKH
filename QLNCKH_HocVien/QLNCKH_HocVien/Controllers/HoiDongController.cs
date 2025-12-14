@@ -24,8 +24,8 @@ namespace QLNCKH_HocVien.Controllers
         public async Task<ActionResult<ApiResult<List<HoiDong>>>> GetAll()
         {
             var data = await _context.HoiDongs
-                .Include(h => h.ThanhViens)
-                .ToListAsync();
+                                 .Include(h => h.ThanhViens)
+                                 .ToListAsync();
             return this.OkResult(data, $"Lấy {data.Count} hội đồng");
         }
 
@@ -147,7 +147,7 @@ namespace QLNCKH_HocVien.Controllers
             if (existing.ThanhViens != null)
             {
                 _context.ThanhVienHoiDongs.RemoveRange(existing.ThanhViens);
-            }
+        }
 
             if (hd.ThanhViens != null && hd.ThanhViens.Any())
             {
@@ -171,7 +171,7 @@ namespace QLNCKH_HocVien.Controllers
 
             var hd = await _context.HoiDongs
                 .Include(x => x.ThanhViens)
-                .FirstOrDefaultAsync(x => x.Id == id);
+                                   .FirstOrDefaultAsync(x => x.Id == id);
 
             if (hd == null)
                 return this.NotFoundResult("Không tìm thấy hội đồng");

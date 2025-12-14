@@ -1,213 +1,479 @@
 @page "/capnhatketqua"
-
+@using MudBlazor
 @using QLNCKH_HocVien.Client.Models
 @using QLNCKH_HocVien.Client.Services
+@using QLNCKH_HocVien.Client.Exceptions
+@using QLNCKH_HocVien.Client.Shared
 @inject KetQuaService KqService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
-<h3 class="text-primary fw-bold mb-4">C?P NH?T K?T QU? CHUY�N �?</h3>
-
-<ul class="nav nav-tabs mb-3">
-    <li class="nav-item">
-        <button class="nav-link @(tab == 1 ? "active fw-bold" : "")" @onclick="() => tab = 1">V�ng So Lo?i</button>
-    </li>
-    <li class="nav-item">
-        <button class="nav-link @(tab == 2 ? "active fw-bold" : "")" @onclick="() => tab = 2">V�ng Chung Kh?o</button>
-    </li>
-</ul>
-
-@if (tab == 1)
-{
-    // --- GIAO DI?N V�NG SO LO?I ---
-    <div class="mb-3">
-        <button class="btn btn-outline-primary" @onclick="AutoXetDuyet">
-            <i class="bi bi-lightning-fill"></i> T? d?ng x�t duy?t Top 15
-        </button>
-    </div>
-
-    <table class="table table-bordered table-hover">
-        <thead class="table-light">
-            <tr>
-                <th>M� C�</th>
-                <th>T�n Chuy�n �?</th>
-                <th width="150">�i?m ch?m</th>
-                <th width="150">K?t qu?</th>
-                <th>Thao t�c</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var cd in dsChuyenDe)
+<PageHeader Title="CẬP NHẬT KẾT QUẢ CHẤM" 
+            Subtitle="Cập nhật điểm chấm cho vòng Sơ Loại và Chung Khảo" 
+            Icon="@Icons.Material.Filled.Assessment">
+    @if (_activeTab == 1)
+    {
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Warning" 
+                   StartIcon="@Icons.Material.Filled.AutoAwesome"
+                   OnClick="AutoXetDuyet"
+                   Disabled="@_isProcessing">
+            @if (_isProcessing)
             {
-                // T�m k?t qu? hi?n c� trong list (n?u chua c� th� t?o m?i ?o d? bind)
-                var kq = dsKqSoLoai.FirstOrDefault(x => x.IdChuyenDe == cd.Id)
-                ?? new KetQuaSoLoai { IdChuyenDe = cd.Id };
-
-                <tr>
-                    <td>@cd.MaSoCD</td>
-                    <td>@cd.TenChuyenDe</td>
-                    <td>
-                        <input type="number" step="0.1" min="0" max="10" class="form-control"
-                               @bind="kq.DiemSo" />
-                    </td>
-                    <td>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" @bind="kq.KetQua" />
-                            <label class="form-check-label">@(kq.KetQua ? "�u?c di ti?p" : "Lo?i")</label>
-                        </div>
-                    </td>
-                    <td>
-                        <button class="btn btn-primary btn-sm" @onclick="() => LuuSoLoai(kq)">Luu</button>
-                    </td>
-                </tr>
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Đang xử lý...</span>
             }
-        </tbody>
-    </table>
+            else
+            {
+                <span>Tự động xét duyệt Top 15</span>
+            }
+        </MudButton>
+    }
+</PageHeader>
+
+<MudPaper Elevation="2" Class="pa-4 mb-4">
+    <MudTabs ActivePanelIndex="@(_activeTab - 1)" 
+             ActivePanelIndexChanged="@((int idx) => { _activeTab = idx + 1; StateHasChanged(); })"
+             Variant="Variant.Pills" 
+             Color="Color.Primary" 
+             Class="mb-4">
+        <MudTabPanel Text="Vòng Sơ Loại">
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                Chấm điểm và xét duyệt các chuyên đề vòng sơ loại (1 người chấm)
+            </MudText>
+        </MudTabPanel>
+        <MudTabPanel Text="Vòng Chung Khảo">
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                Chấm điểm chi tiết cho các chuyên đề đã qua vòng sơ loại (Hội đồng chấm)
+            </MudText>
+        </MudTabPanel>
+    </MudTabs>
+</MudPaper>
+
+@if (_activeTab == 1)
+{
+    @* VÒNG SƠ LOẠI *@
+    <MudPaper Elevation="2" Class="pa-4">
+        @if (_isLoading && _dsChuyenDe.Count == 0)
+        {
+            <TableSkeleton Rows="5" Columns="5" />
+        }
+        else
+        {
+            <MudTable Items="@_dsChuyenDe" 
+                      Hover="true" 
+                      Striped="true"
+                      Dense="true"
+                      Loading="@_isLoading"
+                      LoadingProgressColor="Color.Primary"
+                      Elevation="0">
+                <HeaderContent>
+                    <MudTh Style="width: 60px;">STT</MudTh>
+                    <MudTh>Mã CD</MudTh>
+                    <MudTh>Tên chuyên đề</MudTh>
+                    <MudTh Style="width: 150px;">Điểm chấm</MudTh>
+                    <MudTh Style="width: 150px;">Kết quả</MudTh>
+                    <MudTh Style="width: 200px;">Nhận xét</MudTh>
+                    <MudTh Style="width: 120px;">Thao tác</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    @{
+                        var kq = _dsKqSoLoai.FirstOrDefault(x => x.IdChuyenDe == context.Id);
+                        if (kq == null)
+                        {
+                            kq = new KetQuaSoLoai 
+                            { 
+                                Id = 0,
+                                IdChuyenDe = context.Id,
+                                DiemSo = 0,
+                                KetQua = false
+                            };
+                            // Thêm vào list để binding hoạt động đúng
+                            _dsKqSoLoai.Add(kq);
+                        }
+                    }
+                    <MudTd DataLabel="STT" Style="text-align: center;">
+                        @(_dsChuyenDe.IndexOf(context) + 1)
+                    </MudTd>
+                    <MudTd DataLabel="Mã CD">
+                        <MudChip T="string" Color="Color.Primary" Size="Size.Small">@context.MaSoCD</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Tên chuyên đề">
+                        <MudText Typo="Typo.body2" Style="font-weight: 500;">@context.TenChuyenDe</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Điểm chấm">
+                        <MudNumericField T="double"
+                            @bind-Value="kq.DiemSo"
+                            Variant="Variant.Outlined"
+                            Min="0"
+                            Max="10"
+                            Step="0.1"
+                            Adornment="Adornment.End"
+                            AdornmentText="điểm"
+                            Style="width: 100%;" />
+                    </MudTd>
+                    <MudTd DataLabel="Kết quả">
+                        <MudSwitch T="bool"
+                                   @bind-Checked="kq.KetQua" 
+                                   Color="@(kq.KetQua ? Color.Success : Color.Error)"
+                                   Label="@(kq.KetQua ? "Được đi tiếp" : "Loại")" />
+                    </MudTd>
+                    <MudTd DataLabel="Nhận xét">
+                        <MudTextField @bind-Value="kq.NhanXet"
+                                      Variant="Variant.Outlined"
+                                      Placeholder="Nhập nhận xét..."
+                                      Lines="2"
+                                      Style="width: 100%;" />
+                    </MudTd>
+                    <MudTd DataLabel="Thao tác">
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   OnClick="@(() => LuuSoLoai(kq))"
+                                   Disabled="@(_isSaving || kq.DiemSo < 0 || kq.DiemSo > 10)">
+                            Lưu
+                        </MudButton>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudAlert Severity="Severity.Info" Class="my-4">
+                        Chưa có chuyên đề nào được đăng ký
+                    </MudAlert>
+                </NoRecordsContent>
+            </MudTable>
+        }
+    </MudPaper>
 }
 else
 {
-    // --- GIAO DI?N V�NG CHUNG KH?O ---
-    <div class="alert alert-info">Ch? hi?n th? c�c d? t�i d� qua v�ng so lo?i v� c� H?i d?ng ch?m Chung kh?o.</div>
-
-    @foreach (var cd in dsChuyenDe.Where(x => IsPassSoLoai(x.Id)))
+    @* VÒNG CHUNG KHẢO *@
+    var chuyenDeChungKhao = _dsChuyenDe.Where(x => IsPassSoLoai(x.Id)).ToList();
+    
+    @if (chuyenDeChungKhao.Count == 0)
     {
-        // T�m h?i d?ng chung kh?o c?a d? t�i n�y
-        var hd = dsHoiDong.FirstOrDefault(x => x.IdChuyenDe == cd.Id && x.VongThi == VongCham.ChungKhao);
-        if (hd == null) continue;
+        <MudAlert Severity="Severity.Warning" Class="mb-4">
+            Chưa có chuyên đề nào vượt qua vòng sơ loại hoặc chưa có hội đồng chấm chung khảo.
+        </MudAlert>
+    }
+    else
+    {
+        @foreach (var cd in chuyenDeChungKhao)
+        {
+            var hd = _dsHoiDong.FirstOrDefault(x => x.IdChuyenDe == cd.Id && x.VongThi == VongCham.ChungKhao);
+            if (hd == null) continue;
 
-        <div class="card mb-3 border-primary">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <span>
-                    <strong>@cd.MaSoCD</strong> - @cd.TenChuyenDe
-                </span>
-                <span class="badge bg-primary fs-6">
-                    �I?M TRUNG B�NH: @CalcAverage(cd.Id).ToString("0.00")
-                </span>
-            </div>
-            <div class="card-body p-0">
-                <table class="table table-sm mb-0">
-                    <thead>
-                        <tr>
-                            <th>Th�nh vi�n h?i d?ng</th>
-                            <th>Vai tr�</th>
-                            <th width="150">�i?m ch?m</th>
-                            <th>Luu</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var tv in hd.ThanhViens)
-                        {
-                            var gv = dsGiaoVien.FirstOrDefault(x => x.Id == tv.IdGiaoVien);
-                            // T�m phi?u ch?m c?a GV n�y (n?u chua c� t?o m?i)
-                            var pc = GetPhieuCham(cd.Id, tv.IdGiaoVien);
+            var diemTB = CalcAverage(cd.Id);
+            var soPhieuCham = _dsPhieuChamAll.Count(x => x.IdChuyenDe == cd.Id && x.Diem > 0);
 
-                            <tr>
-                                <td>@gv?.HoTen</td>
-                                <td>@tv.VaiTro</td>
-                                <td>
-                                    <input type="number" step="0.1" min="0" max="10" class="form-control form-control-sm"
-                                           @bind="pc.Diem" />
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-success" @onclick="() => LuuPhieu(pc)">
-                                        <i class="bi bi-check"></i>
-                                    </button>
-                                </td>
-                            </tr>
+            <MudPaper Elevation="2" Class="pa-4 mb-4">
+                <div class="d-flex justify-space-between align-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <MudText Typo="Typo.h6" Style="font-weight: 600;">
+                            <MudChip T="string" Color="Color.Primary" Size="Size.Small" Class="mr-2">@cd.MaSoCD</MudChip>
+                            @cd.TenChuyenDe
+                        </MudText>
+                    </div>
+                    <div class="d-flex align-center gap-3">
+                        <MudChip T="string" 
+                                 Color="@(diemTB >= 8 ? Color.Success : diemTB >= 6 ? Color.Warning : Color.Error)" 
+                                 Size="Size.Medium"
+                                 Icon="@Icons.Material.Filled.Star">
+                            Điểm TB: @diemTB.ToString("0.00")
+                        </MudChip>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            (@soPhieuCham / @hd.ThanhViens.Count phiếu)
+                        </MudText>
+                    </div>
+                </div>
+
+                <MudTable Items="@hd.ThanhViens" 
+                          Hover="true" 
+                          Striped="true"
+                          Dense="true"
+                          Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Thành viên hội đồng</MudTh>
+                        <MudTh Style="width: 120px;">Vai trò</MudTh>
+                        <MudTh Style="width: 180px;">Điểm chấm</MudTh>
+                        <MudTh>Ý kiến</MudTh>
+                        <MudTh Style="width: 120px;">Thao tác</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        @{
+                            var gv = _dsGiaoVien.FirstOrDefault(x => x.Id == context.IdGiaoVien);
+                            var pc = GetPhieuCham(cd.Id, context.IdGiaoVien);
                         }
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                        <MudTd DataLabel="Thành viên">
+                            <MudText Typo="Typo.body2" Style="font-weight: 500;">@gv?.HoTen</MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Vai trò">
+                            <MudChip T="string" 
+                                     Color="@(context.VaiTro == "Chủ tịch" ? Color.Error : context.VaiTro == "Thư ký" ? Color.Info : Color.Default)" 
+                                     Size="Size.Small">
+                                @context.VaiTro
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Điểm chấm">
+                            <MudNumericField T="double"
+                                @bind-Value="pc.Diem"
+                                Variant="Variant.Outlined"
+                                Min="0"
+                                Max="10"
+                                Step="0.1"
+                                Adornment="Adornment.End"
+                                AdornmentText="điểm"
+                                Style="width: 100%;" />
+                        </MudTd>
+                        <MudTd DataLabel="Ý kiến">
+                            <MudTextField @bind-Value="pc.YKien"
+                                          Variant="Variant.Outlined"
+                                          Placeholder="Nhập ý kiến..."
+                                          Lines="2"
+                                          Style="width: 100%;" />
+                        </MudTd>
+                        <MudTd DataLabel="Thao tác">
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Success"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Save"
+                                       OnClick="@(() => LuuPhieu(pc, cd.Id))"
+                                       Disabled="@(_isSaving || pc.Diem < 0 || pc.Diem > 10)">
+                                Lưu
+                            </MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        }
     }
 }
 
 @code {
-    private int tab = 1;
-    private List<ChuyenDeNCKH> dsChuyenDe = new();
-    private List<KetQuaSoLoai> dsKqSoLoai = new();
+    private int _activeTab = 1;
+    private List<ChuyenDeNCKH> _dsChuyenDe = new();
+    private List<KetQuaSoLoai> _dsKqSoLoai = new();
+    private List<HoiDong> _dsHoiDong = new();
+    private List<GiaoVien> _dsGiaoVien = new();
+    private List<PhieuCham> _dsPhieuChamAll = new();
 
-    // Data chung kh?o
-    private List<HoiDong> dsHoiDong = new();
-    private List<GiaoVien> dsGiaoVien = new();
-    private List<PhieuCham> dsPhieuChamAll = new(); // Load t?t c? phi?u ch?m v? client d? t�nh TB
+    private bool _isLoading = false;
+    private bool _isSaving = false;
+    private bool _isProcessing = false;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadData();
+        try
+        {
+            await LoadData();
+        }
+        catch (UnauthorizedException)
+        {
+            Navigation.NavigateTo("/access-denied", forceLoad: true);
+        }
     }
 
     private async Task LoadData()
     {
-        var t1 = KqService.GetChuyenDe();
-        var t2 = KqService.GetSoLoai();
-        var t3 = KqService.GetHoiDong();
-        var t4 = KqService.GetGiaoVien();
-        // Load t?m phi?u ch?m c?a d? t�i d?u ti�n d? demo, th?c t? n�n load all ho?c load on demand
-        // ? d�y t�i d�ng gi?i ph�p don gi?n: Load phi?u ch?m khi render (s? t?i uu sau)
+        try
+        {
+            _isLoading = true;
+            StateHasChanged();
 
-        await Task.WhenAll(t1, t2, t3, t4);
-        dsChuyenDe = t1.Result;
-        dsKqSoLoai = t2.Result;
-        dsHoiDong = t3.Result;
-        dsGiaoVien = t4.Result;
+            // Load từng phần để có thể xử lý lỗi riêng biệt
+            try
+            {
+                _dsChuyenDe = await KqService.GetChuyenDe();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Lỗi tải danh sách chuyên đề: {ex.Message}", Severity.Warning);
+            }
 
-        // Load all phi?u ch?m d? t�nh di?m TB (c?n t?o th�m API Get All PhieuCham n?u mu?n nhanh)
-        // T?m th?i ta d�ng v�ng l?p load (hoi ch?m n?u nhi?u data, nhung ok cho demo)
-        // dsPhieuChamAll.Clear();
-        // foreach (var cd in dsChuyenDe)
-        // {
-        //     var pcs = await KqService.GetPhieuCham(cd.Id);
-        //     dsPhieuChamAll.AddRange(pcs);
-        // }
+            try
+            {
+                _dsKqSoLoai = await KqService.GetSoLoai();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Lỗi tải kết quả sơ loại: {ex.Message}", Severity.Warning);
+            }
 
-        // ? Load t?t c? phi?u ch?m 1 l?n - Nhanh hon nhi?u
-        dsPhieuChamAll = await KqService.GetAllPhieuCham();
+            try
+            {
+                _dsHoiDong = await KqService.GetHoiDong();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Lỗi tải danh sách hội đồng: {ex.Message}", Severity.Warning);
+            }
+
+            try
+            {
+                _dsGiaoVien = await KqService.GetGiaoVien();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Lỗi tải danh sách giáo viên: {ex.Message}", Severity.Warning);
+            }
+
+            try
+            {
+                _dsPhieuChamAll = await KqService.GetAllPhieuCham();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Lỗi tải danh sách phiếu chấm: {ex.Message}", Severity.Warning);
+            }
+        }
+        catch (UnauthorizedException)
+        {
+            Navigation.NavigateTo("/access-denied", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi tải dữ liệu: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
     }
 
-    // --- LOGIC SO LO?I ---
     private async Task LuuSoLoai(KetQuaSoLoai item)
     {
-        await KqService.SaveSoLoai(item);
-        dsKqSoLoai = await KqService.GetSoLoai(); // Refresh
+        if (item.DiemSo < 0 || item.DiemSo > 10)
+        {
+            Snackbar.Add("Điểm phải từ 0 đến 10!", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            _isSaving = true;
+            var result = await KqService.SaveSoLoai(item);
+            
+            if (result.Success)
+            {
+                Snackbar.Add("Lưu kết quả sơ loại thành công!", Severity.Success);
+                _dsKqSoLoai = await KqService.GetSoLoai();
+                StateHasChanged();
+            }
+            else
+            {
+                Snackbar.Add(result.Message, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
     }
 
     private async Task AutoXetDuyet()
     {
-        await KqService.AutoTop15();
-        await LoadData();
+        var parameters = new DialogParameters
+        {
+            ["ContentText"] = "Bạn có chắc chắn muốn tự động xét duyệt Top 15 chuyên đề có điểm cao nhất?",
+            ["ConfirmText"] = "Xác nhận",
+            ["Icon"] = Icons.Material.Filled.AutoAwesome,
+            ["IconColor"] = Color.Warning
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Xác nhận", parameters, options);
+        var result = await dialog.Result;
+
+        if (result == null || result.Canceled) return;
+
+        try
+        {
+            _isProcessing = true;
+            var apiResult = await KqService.AutoTop15();
+            
+            if (apiResult.Success)
+            {
+                Snackbar.Add($"Đã tự động xét duyệt {apiResult.Data} chuyên đề!", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add(apiResult.Message, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
     }
 
     private bool IsPassSoLoai(int idCD)
     {
-        return dsKqSoLoai.Any(x => x.IdChuyenDe == idCD && x.KetQua == true);
+        return _dsKqSoLoai.Any(x => x.IdChuyenDe == idCD && x.KetQua == true);
     }
 
-    // --- LOGIC CHUNG KH?O ---
-
-    // Helper l?y phi?u ch?m t? list local, n?u kh�ng c� th� new
     private PhieuCham GetPhieuCham(int idCD, int idGV)
     {
-        var pc = dsPhieuChamAll.FirstOrDefault(x => x.IdChuyenDe == idCD && x.IdGiaoVien == idGV);
+        var pc = _dsPhieuChamAll.FirstOrDefault(x => x.IdChuyenDe == idCD && x.IdGiaoVien == idGV);
         if (pc == null)
         {
             pc = new PhieuCham { IdChuyenDe = idCD, IdGiaoVien = idGV };
-            dsPhieuChamAll.Add(pc);
+            _dsPhieuChamAll.Add(pc);
         }
         return pc;
     }
 
-    private async Task LuuPhieu(PhieuCham pc)
+    private async Task LuuPhieu(PhieuCham pc, int idChuyenDe)
     {
-        await KqService.SavePhieuCham(pc);
-        // Refresh l?i list phi?u ch?m c?a d? t�i n�y d? c?p nh?t di?m TB
-        var newPcs = await KqService.GetPhieuCham(pc.IdChuyenDe);
-        dsPhieuChamAll.RemoveAll(x => x.IdChuyenDe == pc.IdChuyenDe);
-        dsPhieuChamAll.AddRange(newPcs);
+        if (pc.Diem < 0 || pc.Diem > 10)
+        {
+            Snackbar.Add("Điểm phải từ 0 đến 10!", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            _isSaving = true;
+            var result = await KqService.SavePhieuCham(pc);
+            
+            if (result.Success)
+            {
+                Snackbar.Add("Lưu phiếu chấm thành công!", Severity.Success);
+                var newPcs = await KqService.GetPhieuCham(idChuyenDe);
+                _dsPhieuChamAll.RemoveAll(x => x.IdChuyenDe == idChuyenDe);
+                _dsPhieuChamAll.AddRange(newPcs);
+                StateHasChanged();
+            }
+            else
+            {
+                Snackbar.Add(result.Message, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
     }
 
     private double CalcAverage(int idCD)
     {
-        var scores = dsPhieuChamAll.Where(x => x.IdChuyenDe == idCD && x.Diem > 0).Select(x => x.Diem).ToList();
+        var scores = _dsPhieuChamAll.Where(x => x.IdChuyenDe == idCD && x.Diem > 0).Select(x => x.Diem).ToList();
         if (scores.Count == 0) return 0;
         return scores.Average();
     }
+
+    [Inject] IDialogService DialogService { get; set; } = default!;
 }

@@ -1,314 +1,644 @@
 @page "/quanlygiaovien"
-
+@using MudBlazor
 @using QLNCKH_HocVien.Client.Models
 @using QLNCKH_HocVien.Client.Services
 @using QLNCKH_HocVien.Client.Exceptions
+@using QLNCKH_HocVien.Client.Shared
 @inject GiaoVienService GvService
 @inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
-<h3 class="text-primary fw-bold mb-3"><i class="bi bi-person-video3"></i> QU?N L� TH�NG TIN GI�O VI�N</h3>
+<PageHeader Title="QUẢN LÝ GIÁO VIÊN" 
+            Subtitle="Danh sách và quản lý thông tin giáo viên" 
+            Icon="@Icons.Material.Filled.Person">
+    <MudButton Variant="Variant.Filled" 
+               Color="Color.Surface" 
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenAddDialog"
+               Disabled="@_isLoading">
+        Thêm giáo viên
+    </MudButton>
+</PageHeader>
 
-@if (!string.IsNullOrEmpty(msgError))
-{
-    <div class="alert alert-danger">@msgError</div>
-}
-
-<div class="card mb-4 shadow-sm">
-    <div class="card-header bg-primary text-white">Nh?p th�ng tin h? so</div>
-    <div class="card-body">
-        <EditForm Model="@gv" OnValidSubmit="Save">
-            <DataAnnotationsValidator/>
-
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label">M� s? CB (*)</label>
-                    <InputText @bind-Value="gv.MaSoCB" class="form-control" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">H? T�n (*)</label>
-                    <InputText @bind-Value="gv.HoTen" class="form-control" />
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Gi?i t�nh</label>
-                    <InputSelect @bind-Value="gv.GioiTinh" class="form-select">
-                        <option value="Nam">Nam</option>
-                        <option value="N?">N?</option>
-                    </InputSelect>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Ng�y sinh</label>
-                    <InputDate @bind-Value="gv.NgaySinh" class="form-control" />
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">Qu� qu�n (T?nh)</label>
-                    <InputSelect @bind-Value="gv.IdTinh" class="form-select">
-                        <option value="">-- Ch?n --</option>
-                        @foreach (var i in lsTinh)
-                        {
-                            <option value="@i.IdTinh">@i.TenTinh</option>
-                        }
-                    </InputSelect>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">D�n t?c</label>
-                    <InputSelect @bind-Value="gv.IdDanToc" class="form-select">
-                        <option value="">-- Ch?n --</option>
-                        @foreach (var i in lsDanToc)
-                        {
-                            <option value="@i.IdDanToc">@i.TenDanToc</option>
-                        }
-                    </InputSelect>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">T�n gi�o</label>
-                    <InputSelect @bind-Value="gv.IdTonGiao" class="form-select">
-                        <option value="">-- Ch?n --</option>
-                        @foreach (var i in lsTonGiao)
-                        {
-                            <option value="@i.IdTonGiao">@i.TenTonGiao</option>
-                        }
-                    </InputSelect>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">S�T</label>
-                    <InputText @bind-Value="gv.SoDienThoai" class="form-control" />
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">T� Chuy�n m�n</label>
-                    <InputSelect @bind-Value="gv.IdTrinhDoChuyenMon" class="form-select">
-                        <option value="">-- Ch?n --</option>
-                        @foreach (var i in lsTDCM)
-                        {
-                            <option value="@i.Id">@i.Ten</option>
-                        }
-                    </InputSelect>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">T� Ch�nh tr? (LLCT)</label>
-                    <InputSelect @bind-Value="gv.IdTrinhDoLLCT" class="form-select">
-                        <option value="">-- Ch?n --</option>
-                        @foreach (var i in lsTDLLCT)
-                        {
-                            <option value="@i.Id">@i.Ten</option>
-                        }
-                    </InputSelect>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">�on v? c�ng t�c</label>
-                    <InputSelect @bind-Value="gv.IdDonViCongTac" class="form-select">
-                        <option value="">-- Ch?n �on v? --</option>
-                        @foreach (var i in lsToChuc)
-                        {
-                            <option value="@i.Id">@i.Ten</option>
-                        }
-                    </InputSelect>
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">Ch?c v?</label>
-                    <InputSelect @bind-Value="gv.IdChucVu" class="form-select">
-                        <option value="">-- Ch?n --</option>
-                        @foreach (var i in lsChucVu)
-                        {
-                            <option value="@i.IdChucVu">@i.TenChucVu</option>
-                        }
-                    </InputSelect>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">C?p b?c</label>
-                    <InputSelect @bind-Value="gv.IdCapBac" class="form-select">
-                        <option value="">-- Ch?n --</option>
-                        @foreach (var i in lsCapBac)
-                        {
-                            <option value="@i.Id">@i.Ten</option>
-                        }
-                    </InputSelect>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">H? s? luong</label>
-                    <InputNumber @bind-Value="gv.HeSoLuong" class="form-control" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Linh v?c chuy�n m�n</label>
-                    <InputText @bind-Value="gv.LinhVuc" class="form-control" />
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label">Ch?c danh</label>
-                    <InputSelect @bind-Value="gv.IdChucDanh" class="form-select">
-                        <option value="">-- Ch?n --</option>
-                        @foreach (var i in lsChucDanh)
-                        {
-                            <option value="@i.Id">@i.Ten</option>
-                        }
-                    </InputSelect>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">H?c h�m</label>
-                    <InputSelect @bind-Value="gv.IdHocHam" class="form-select">
-                        <option value="">-- Ch?n --</option>
-                        @foreach (var i in lsHocHam)
-                        {
-                            <option value="@i.Id">@i.Ten</option>
-                        }
-                    </InputSelect>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">H?c v?</label>
-                    <InputSelect @bind-Value="gv.IdHocVi" class="form-select">
-                        <option value="">-- Ch?n --</option>
-                        @foreach (var i in lsHocVi)
-                        {
-                            <option value="@i.Id">@i.Ten</option>
-                        }
-                    </InputSelect>
-                </div>
-            </div>
-
-            <div class="mt-3 text-end">
-                <button type="submit" class="btn btn-success"><i class="bi bi-floppy"></i> Luu H? So</button>
-            </div>
-        </EditForm>
+<MudPaper Elevation="2" Class="pa-4">
+    @* Search Bar *@
+    <div class="d-flex gap-3 mb-4 flex-wrap">
+        <MudTextField @bind-Value="_searchText"
+                      Placeholder="Tìm kiếm theo mã CB, họ tên, đơn vị..."
+                      Variant="Variant.Outlined"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true"
+                      DebounceInterval="500"
+                      OnDebounceIntervalElapsed="OnSearchChanged"
+                      Style="max-width: 400px;"
+                      Class="flex-grow-1" />
+        
+        <MudSelect T="int" 
+                   Value="_pageSize" 
+                   Label="Hiển thị"
+                   Variant="Variant.Outlined"
+                   Style="width: 120px;"
+                   ValueChanged="@(async (int size) => await OnPageSizeChanged(size))">
+            <MudSelectItem Value="5">5 / trang</MudSelectItem>
+            <MudSelectItem Value="10">10 / trang</MudSelectItem>
+            <MudSelectItem Value="25">25 / trang</MudSelectItem>
+            <MudSelectItem Value="50">50 / trang</MudSelectItem>
+        </MudSelect>
     </div>
-</div>
 
-<div class="card">
-    <div class="card-body">
-        <table class="table table-bordered table-striped">
-            <thead>
-                <tr>
-                    <th>M� CB</th>
-                    <th>H? T�n</th>
-                    <th>Ng�y sinh</th>
-                    <th>�on v?</th>
-                    <th>Ch?c danh/H?c v?</th>
-                    <th>Thao t�c</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var i in listGiaoVien)
-                {
-                    <tr>
-                        <td>@i.MaSoCB</td>
-                        <td>@i.HoTen</td>
-                        <td>@(i.NgaySinh?.ToString("dd/MM/yyyy"))</td>
-                        <td>
-                            @(lsToChuc.FirstOrDefault(x => x.Id == i.IdDonViCongTac)?.Ten)
-                        </td>
-                        <td>
-                            @(lsHocHam.FirstOrDefault(x => x.Id == i.IdHocHam)?.Ten)
-                            @(lsHocVi.FirstOrDefault(x => x.Id == i.IdHocVi)?.Ten)
-                        </td>
-                        <td>
-                            <button class="btn btn-danger btn-sm" @onclick="() => Del(i.Id)">X�a</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-</div>
+    @* Data Table *@
+    @if (_isLoading && _giaoViens.Count == 0)
+    {
+        <TableSkeleton Rows="5" Columns="8" />
+    }
+    else
+    {
+        <MudTable Items="@_giaoViens" 
+                  Hover="true" 
+                  Striped="true"
+                  Dense="true"
+                  Loading="@_isLoading"
+                  LoadingProgressColor="Color.Primary"
+                  Elevation="0"
+                  Class="mb-4">
+            <HeaderContent>
+                <MudTh Style="width: 60px;">STT</MudTh>
+                <MudTh>Mã CB</MudTh>
+                <MudTh>Họ và tên</MudTh>
+                <MudTh>Ngày sinh</MudTh>
+                <MudTh>Giới tính</MudTh>
+                <MudTh>Đơn vị</MudTh>
+                <MudTh>Chức danh/Học vị</MudTh>
+                <MudTh Style="width: 150px;">Thao tác</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="STT" Style="text-align: center;">
+                    @((_currentPage - 1) * _pageSize + _giaoViens.IndexOf(context) + 1)
+                </MudTd>
+                <MudTd DataLabel="Mã CB">
+                    <MudChip T="string" Color="Color.Primary" Size="Size.Small">@context.MaSoCB</MudChip>
+                </MudTd>
+                <MudTd DataLabel="Họ tên">
+                    <MudText Typo="Typo.body2" Style="font-weight: 500;">@context.HoTen</MudText>
+                </MudTd>
+                <MudTd DataLabel="Ngày sinh">@context.NgaySinh?.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd DataLabel="Giới tính">
+                    @if (context.GioiTinh == "Nam")
+                    {
+                        <MudChip T="string" Color="Color.Info" Size="Size.Small">Nam</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Secondary" Size="Size.Small">Nữ</MudChip>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Đơn vị">
+                    @(_dsToChuc.FirstOrDefault(t => t.Id == context.IdDonViCongTac)?.Ten ?? "-")
+                </MudTd>
+                <MudTd DataLabel="Chức danh/Học vị">
+                    <div>
+                        @if (context.IdChucDanh.HasValue)
+                        {
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Class="mb-1">
+                                @(_dsChucDanh.FirstOrDefault(c => c.Id == context.IdChucDanh)?.Ten ?? "-")
+                            </MudChip>
+                        }
+                        @if (context.IdHocVi.HasValue)
+                        {
+                            <MudChip T="string" Color="Color.Info" Size="Size.Small">
+                                @(_dsHocVi.FirstOrDefault(h => h.Id == context.IdHocVi)?.Ten ?? "-")
+                            </MudChip>
+                        }
+                        @if (!context.IdChucDanh.HasValue && !context.IdHocVi.HasValue)
+                        {
+                            <span>-</span>
+                        }
+                    </div>
+                </MudTd>
+                <MudTd DataLabel="Thao tác">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                   Color="Color.Primary" 
+                                   Size="Size.Small"
+                                   OnClick="@(() => OpenEditDialog(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                   Color="Color.Error" 
+                                   Size="Size.Small"
+                                   OnClick="@(() => ConfirmDelete(context))" />
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudAlert Severity="Severity.Info" Class="my-4">
+                    @if (string.IsNullOrEmpty(_searchText))
+                    {
+                        <span>Chưa có dữ liệu giáo viên</span>
+                    }
+                    else
+                    {
+                        <span>Không tìm thấy giáo viên phù hợp với "@_searchText"</span>
+                    }
+                </MudAlert>
+            </NoRecordsContent>
+        </MudTable>
+
+        @* Pagination *@
+        <div class="d-flex justify-space-between align-center flex-wrap gap-2">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Hiển thị @((_currentPage - 1) * _pageSize + 1) - @Math.Min(_currentPage * _pageSize, _totalCount) 
+                trong tổng số @_totalCount giáo viên
+            </MudText>
+            
+            <MudPagination Count="@_totalPages" 
+                          Selected="@_currentPage"
+                          ShowFirstButton="true"
+                          ShowLastButton="true"
+                          Color="Color.Primary"
+                          Variant="Variant.Outlined"
+                          SelectedChanged="@(async (int page) => await OnPageChanged(page))" />
+        </div>
+    }
+</MudPaper>
+
+@* Add/Edit Dialog *@
+<MudDialog @bind-Visible="_showFormDialog" Options="@_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(_isEditMode ? Icons.Material.Filled.Edit : Icons.Material.Filled.PersonAdd)" Class="mr-2" />
+            @(_isEditMode ? "Cập nhật giáo viên" : "Thêm giáo viên mới")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_formIsValid">
+            <MudGrid Spacing="3">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_giaoVienForm.MaSoCB"
+                                  Label="Mã số cán bộ *"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="Vui lòng nhập mã số cán bộ"
+                                  Disabled="@_isEditMode" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_giaoVienForm.HoTen"
+                                  Label="Họ và tên *"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="Vui lòng nhập họ tên" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_giaoVienForm.NgaySinh"
+                                   Label="Ngày sinh"
+                                   Variant="Variant.Outlined"
+                                   DateFormat="dd/MM/yyyy"
+                                   Placeholder="Chọn ngày sinh" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="_giaoVienForm.GioiTinh"
+                               Label="Giới tính"
+                               Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("Nam")">Nam</MudSelectItem>
+                        <MudSelectItem Value="@("Nữ")">Nữ</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?" 
+                               @bind-Value="_giaoVienForm.IdTinh"
+                               Label="Quê quán"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        @foreach (var t in _dsTinh)
+                        {
+                            <MudSelectItem T="int?" Value="@t.IdTinh">@t.TenTinh</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_giaoVienForm.SoDienThoai"
+                                  Label="Số điện thoại"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?" 
+                               @bind-Value="_giaoVienForm.IdDanToc"
+                               Label="Dân tộc"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        @foreach (var d in _dsDanToc)
+                        {
+                            <MudSelectItem T="int?" Value="@d.IdDanToc">@d.TenDanToc</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?" 
+                               @bind-Value="_giaoVienForm.IdTonGiao"
+                               Label="Tôn giáo"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        @foreach (var t in _dsTonGiao)
+                        {
+                            <MudSelectItem T="int?" Value="@t.IdTonGiao">@t.TenTonGiao</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?" 
+                               @bind-Value="_giaoVienForm.IdTrinhDoChuyenMon"
+                               Label="Trình độ chuyên môn"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        @foreach (var td in _dsTrinhDoChuyenMon)
+                        {
+                            <MudSelectItem T="int?" Value="@td.Id">@td.Ten</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?" 
+                               @bind-Value="_giaoVienForm.IdTrinhDoLLCT"
+                               Label="Trình độ lý luận chính trị"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        @foreach (var td in _dsTrinhDoLLCT)
+                        {
+                            <MudSelectItem T="int?" Value="@td.Id">@td.Ten</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?" 
+                               @bind-Value="_giaoVienForm.IdDonViCongTac"
+                               Label="Đơn vị công tác"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        @foreach (var dv in _dsToChuc)
+                        {
+                            <MudSelectItem T="int?" Value="@dv.Id">@dv.Ten</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?" 
+                               @bind-Value="_giaoVienForm.IdChucVu"
+                               Label="Chức vụ"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        @foreach (var cv in _dsChucVu)
+                        {
+                            <MudSelectItem T="int?" Value="@cv.IdChucVu">@cv.TenChucVu</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?" 
+                               @bind-Value="_giaoVienForm.IdCapBac"
+                               Label="Cấp bậc"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        @foreach (var cb in _dsCapBac)
+                        {
+                            <MudSelectItem T="int?" Value="@cb.Id">@cb.Ten</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField T="double?" 
+                                    @bind-Value="_giaoVienForm.HeSoLuong"
+                                    Label="Hệ số lương"
+                                    Variant="Variant.Outlined"
+                                    Min="0"
+                                    Max="10"
+                                    Step="0.1" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?" 
+                               @bind-Value="_giaoVienForm.IdChucDanh"
+                               Label="Chức danh"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        @foreach (var cd in _dsChucDanh)
+                        {
+                            <MudSelectItem T="int?" Value="@cd.Id">@cd.Ten</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?" 
+                               @bind-Value="_giaoVienForm.IdHocHam"
+                               Label="Học hàm"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        @foreach (var hh in _dsHocHam)
+                        {
+                            <MudSelectItem T="int?" Value="@hh.Id">@hh.Ten</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?" 
+                               @bind-Value="_giaoVienForm.IdHocVi"
+                               Label="Học vị"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        @foreach (var hv in _dsHocVi)
+                        {
+                            <MudSelectItem T="int?" Value="@hv.Id">@hv.Ten</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_giaoVienForm.LinhVuc"
+                                  Label="Lĩnh vực chuyên môn"
+                                  Variant="Variant.Outlined"
+                                  Lines="2" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseFormDialog" Disabled="@_isSaving">Hủy</MudButton>
+        <MudButton Color="Color.Primary" 
+                   Variant="Variant.Filled"
+                   OnClick="SaveGiaoVien"
+                   Disabled="@(!_formIsValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Đang lưu...</span>
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Save" Class="mr-1" />
+                <span>Lưu</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
-    private GiaoVien gv = new();
-    private List<GiaoVien> listGiaoVien = new();
-    private string? msgError;
+    // Data
+    private List<GiaoVien> _giaoViens = new();
+    private List<Tinh> _dsTinh = new();
+    private List<DanToc> _dsDanToc = new();
+    private List<TonGiao> _dsTonGiao = new();
+    private List<TrinhDoChuyenMon> _dsTrinhDoChuyenMon = new();
+    private List<TrinhDoLLCT> _dsTrinhDoLLCT = new();
+    private List<ToChuc> _dsToChuc = new();
+    private List<ChucVu> _dsChucVu = new();
+    private List<CapBac> _dsCapBac = new();
+    private List<ChucDanh> _dsChucDanh = new();
+    private List<HocHam> _dsHocHam = new();
+    private List<HocVi> _dsHocVi = new();
 
-    // C�c list danh m?c
-    private List<Tinh> lsTinh = new();
-    private List<DanToc> lsDanToc = new();
-    private List<TonGiao> lsTonGiao = new();
-    private List<TrinhDoChuyenMon> lsTDCM = new();
-    private List<TrinhDoLLCT> lsTDLLCT = new();
-    private List<ToChuc> lsToChuc = new();
-    private List<ChucVu> lsChucVu = new();
-    private List<CapBac> lsCapBac = new();
-    private List<ChucDanh> lsChucDanh = new();
-    private List<HocHam> lsHocHam = new();
-    private List<HocVi> lsHocVi = new();
+    // Pagination
+    private int _currentPage = 1;
+    private int _pageSize = 10;
+    private int _totalCount = 0;
+    private int _totalPages => (int)Math.Ceiling(_totalCount / (double)_pageSize);
+
+    // Search
+    private string _searchText = "";
+
+    // Form
+    private GiaoVien _giaoVienForm = new();
+    private bool _showFormDialog = false;
+    private bool _isEditMode = false;
+    private bool _formIsValid = false;
+    private bool _isSaving = false;
+    private MudForm? _form;
+
+    // Loading
+    private bool _isLoading = false;
+
+    // Dialog options
+    private DialogOptions _dialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Large,
+        FullWidth = true,
+        CloseOnEscapeKey = true,
+        BackdropClick = false
+    };
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            // Load song song t?t c? danh m?c cho nhanh
-            var tasks = new Task[]
+            // Load catalogs in parallel
+            var tasks = new[]
             {
-                LoadCatalog(async () => lsTinh = await GvService.LayDsTinh()),
-                LoadCatalog(async () => lsDanToc = await GvService.LayDsDanToc()),
-                LoadCatalog(async () => lsTonGiao = await GvService.LayDsTonGiao()),
-                LoadCatalog(async () => lsTDCM = await GvService.LayDsTrinhDoChuyenMon()),
-                LoadCatalog(async () => lsTDLLCT = await GvService.LayDsTrinhDoLLCT()),
-                LoadCatalog(async () => lsToChuc = await GvService.LayDsToChuc()),
-                LoadCatalog(async () => lsChucVu = await GvService.LayDsChucVu()),
-                LoadCatalog(async () => lsCapBac = await GvService.LayDsCapBac()),
-                LoadCatalog(async () => lsChucDanh = await GvService.LayDsChucDanh()),
-                LoadCatalog(async () => lsHocHam = await GvService.LayDsHocHam()),
-                LoadCatalog(async () => lsHocVi = await GvService.LayDsHocVi()),
-                LoadList()
+                LoadCatalogAsync(async () => _dsTinh = await GvService.LayDsTinh()),
+                LoadCatalogAsync(async () => _dsDanToc = await GvService.LayDsDanToc()),
+                LoadCatalogAsync(async () => _dsTonGiao = await GvService.LayDsTonGiao()),
+                LoadCatalogAsync(async () => _dsTrinhDoChuyenMon = await GvService.LayDsTrinhDoChuyenMon()),
+                LoadCatalogAsync(async () => _dsTrinhDoLLCT = await GvService.LayDsTrinhDoLLCT()),
+                LoadCatalogAsync(async () => _dsToChuc = await GvService.LayDsToChuc()),
+                LoadCatalogAsync(async () => _dsChucVu = await GvService.LayDsChucVu()),
+                LoadCatalogAsync(async () => _dsCapBac = await GvService.LayDsCapBac()),
+                LoadCatalogAsync(async () => _dsChucDanh = await GvService.LayDsChucDanh()),
+                LoadCatalogAsync(async () => _dsHocHam = await GvService.LayDsHocHam()),
+                LoadCatalogAsync(async () => _dsHocVi = await GvService.LayDsHocVi())
             };
             await Task.WhenAll(tasks);
+
+            // Load data
+            await LoadDataAsync();
         }
         catch (UnauthorizedException)
         {
-            // Redirect d?n trang access-denied khi kh�ng c� quy?n
             Navigation.NavigateTo("/access-denied", forceLoad: true);
-        }
-        catch (Exception ex)
-        {
-            msgError = "L?i t?i d? li?u: " + ex.Message;
         }
     }
 
-    // H�m ph? d? ignore l?i t?ng catalog (tr�nh 1 c�i l?i l�m ch?t c? trang)
-    private async Task LoadCatalog(Func<Task> action)
+    private async Task LoadCatalogAsync(Func<Task> action)
     {
         try { await action(); } catch { }
     }
 
-    private async Task LoadList()
+    private async Task LoadDataAsync()
     {
         try
         {
-            listGiaoVien = await GvService.LayTatCaGiaoVien();
+            _isLoading = true;
+            StateHasChanged();
+
+            var result = await GvService.LayDanhSachPhanTrang(_currentPage, _pageSize, _searchText);
+            _giaoViens = result.Data ?? new List<GiaoVien>();
+            _totalCount = result.TotalCount;
         }
         catch (UnauthorizedException)
         {
             Navigation.NavigateTo("/access-denied", forceLoad: true);
         }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi tải dữ liệu: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
-    private async Task Save()
+    private async Task OnSearchChanged(string value)
     {
-        msgError = null;
+        _searchText = value;
+        _currentPage = 1;
+        await LoadDataAsync();
+    }
+
+    private async Task OnPageChanged(int page)
+    {
+        _currentPage = page;
+        await LoadDataAsync();
+    }
+
+    private async Task OnPageSizeChanged(int size)
+    {
+        _pageSize = size;
+        _currentPage = 1;
+        await LoadDataAsync();
+    }
+
+    private void OpenAddDialog()
+    {
+        _giaoVienForm = new GiaoVien();
+        _isEditMode = false;
+        _showFormDialog = true;
+    }
+
+    private void OpenEditDialog(GiaoVien gv)
+    {
+        _giaoVienForm = new GiaoVien
+        {
+            Id = gv.Id,
+            MaSoCB = gv.MaSoCB,
+            HoTen = gv.HoTen,
+            NgaySinh = gv.NgaySinh,
+            GioiTinh = gv.GioiTinh,
+            IdTinh = gv.IdTinh,
+            IdXa = gv.IdXa,
+            IdDanToc = gv.IdDanToc,
+            IdTonGiao = gv.IdTonGiao,
+            SoDienThoai = gv.SoDienThoai,
+            IdTrinhDoChuyenMon = gv.IdTrinhDoChuyenMon,
+            IdTrinhDoLLCT = gv.IdTrinhDoLLCT,
+            IdDonViCongTac = gv.IdDonViCongTac,
+            IdChucVu = gv.IdChucVu,
+            IdCapBac = gv.IdCapBac,
+            HeSoLuong = gv.HeSoLuong,
+            IdChucDanh = gv.IdChucDanh,
+            IdHocHam = gv.IdHocHam,
+            IdHocVi = gv.IdHocVi,
+            LinhVuc = gv.LinhVuc
+        };
+        _isEditMode = true;
+        _showFormDialog = true;
+    }
+
+    private void CloseFormDialog()
+    {
+        if (!_isSaving)
+        {
+            _showFormDialog = false;
+        }
+    }
+
+    private async Task SaveGiaoVien()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+            if (!_formIsValid) return;
+        }
+
         try
         {
-            var result = await GvService.ThemGiaoVien(gv);
-            if (result.Success)
+            _isSaving = true;
+
+            if (_isEditMode)
             {
-                gv = new GiaoVien(); // Reset form
-                await LoadList();
+                var result = await GvService.CapNhatGiaoVien(_giaoVienForm);
+                if (result.Success)
+                {
+                    Snackbar.Add("Cập nhật giáo viên thành công!", Severity.Success);
+                    _showFormDialog = false;
+                    await LoadDataAsync();
+                }
+                else
+                {
+                    Snackbar.Add(result.Message, Severity.Error);
+                }
             }
             else
             {
-                msgError = result.Message;
+                var result = await GvService.ThemGiaoVien(_giaoVienForm);
+                if (result.Success)
+                {
+                    Snackbar.Add("Thêm giáo viên thành công!", Severity.Success);
+                    _showFormDialog = false;
+                    await LoadDataAsync();
+                }
+                else
+                {
+                    Snackbar.Add(result.Message, Severity.Error);
+                }
             }
         }
         catch (Exception ex)
         {
-            msgError = ex.Message;
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
         }
     }
 
-    private async Task Del(int id)
+    private async Task ConfirmDelete(GiaoVien gv)
     {
-        var result = await GvService.XoaGiaoVien(id);
-        if (!result.Success)
+        var parameters = new DialogParameters
         {
-            msgError = result.Message;
+            ["ContentText"] = $"Bạn có chắc chắn muốn xóa giáo viên '{gv.HoTen}' ({gv.MaSoCB})?",
+            ["ConfirmText"] = "Xóa",
+            ["Icon"] = Icons.Material.Filled.DeleteForever,
+            ["IconColor"] = Color.Error
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Xác nhận xóa", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await DeleteGiaoVien(gv.Id);
         }
-        await LoadList();
+    }
+
+    private async Task DeleteGiaoVien(int id)
+    {
+        try
+        {
+            _isLoading = true;
+            var result = await GvService.XoaGiaoVien(id);
+            
+            if (result.Success)
+            {
+                Snackbar.Add("Xóa giáo viên thành công!", Severity.Success);
+                await LoadDataAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.Message, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi xóa: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 }

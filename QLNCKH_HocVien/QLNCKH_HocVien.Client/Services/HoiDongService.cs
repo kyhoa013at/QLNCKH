@@ -75,14 +75,14 @@ namespace QLNCKH_HocVien.Client.Services
                 return ApiResult<HoiDong>.Fail($"Lỗi: {response.StatusCode}");
 
             return result ?? ApiResult<HoiDong>.Fail("Không có response từ server");
-        }
+            }
 
         /// <summary>
         /// Cập nhật hội đồng
         /// </summary>
         public async Task<ApiResult> CapNhatHoiDong(HoiDong hd)
         {
-            var response = await _http.PutAsJsonAsync($"api/HoiDong/{hd.Id}", hd);
+            var response = await _http.PutAsJsonAsyncWithAuth($"api/HoiDong/{hd.Id}", hd);
             
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 throw new UnauthorizedException();

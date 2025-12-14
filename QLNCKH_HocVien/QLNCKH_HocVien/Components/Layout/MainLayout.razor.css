@@ -88,9 +88,20 @@ main {
     z-index: 1000;
 }
 
-    #blazor-error-ui .dismiss {
-        cursor: pointer;
-        position: absolute;
-        right: 0.75rem;
-        top: 0.5rem;
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}
+
+/* Fix MudMainContent spacing để không bị AppBar đè */
+::deep .mud-main-content {
+    padding-top: 64px !important;
+}
+
+@media (max-width: 960px) {
+    ::deep .mud-main-content {
+        padding-top: 56px !important;
     }
+}

@@ -70,8 +70,8 @@
         <NavMenu />
     </MudDrawer>
 
-    <MudMainContent Class="pt-4">
-        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="px-4 pb-4">
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pa-4">
             @Body
         </MudContainer>
     </MudMainContent>
@@ -120,7 +120,10 @@
         },
         LayoutProperties = new LayoutProperties()
         {
-            DefaultBorderRadius = "8px"
+            DefaultBorderRadius = "8px",
+            AppbarHeight = "64px",
+            DrawerWidthLeft = "260px",
+            DrawerWidthRight = "300px"
         }
     };
 

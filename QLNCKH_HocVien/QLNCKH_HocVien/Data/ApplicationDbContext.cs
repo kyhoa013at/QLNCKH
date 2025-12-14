@@ -124,9 +124,9 @@ namespace QLNCKH_HocVien.Data
 
                 // Relationship: HoiDong -> ThanhVienHoiDong (One-to-Many)
                 entity.HasMany(h => h.ThanhViens)
-                    .WithOne()
-                    .HasForeignKey(t => t.IdHoiDong)
-                    .OnDelete(DeleteBehavior.Cascade);
+                .WithOne()
+                .HasForeignKey(t => t.IdHoiDong)
+                .OnDelete(DeleteBehavior.Cascade);
 
                 // Index for filtering
                 entity.HasIndex(h => h.IdChuyenDe);
@@ -160,7 +160,9 @@ namespace QLNCKH_HocVien.Data
             modelBuilder.Entity<KetQuaSoLoai>(entity =>
             {
                 entity.Property(k => k.NhanXet).HasMaxLength(500);
-                entity.Property(k => k.DiemSo).HasPrecision(4, 2);
+                entity.Property(k => k.DiemSo)
+                    .HasPrecision(4, 2)
+                    .HasColumnType("float(53)"); // Đảm bảo dùng double, không phải float (Single)
 
                 // Relationship: KetQuaSoLoai -> ChuyenDe (One-to-One)
                 entity.HasOne<ChuyenDeNCKH>()
@@ -178,7 +180,9 @@ namespace QLNCKH_HocVien.Data
             modelBuilder.Entity<PhieuCham>(entity =>
             {
                 entity.Property(p => p.YKien).HasMaxLength(500);
-                entity.Property(p => p.Diem).HasPrecision(4, 2);
+                entity.Property(p => p.Diem)
+                    .HasPrecision(4, 2)
+                    .HasColumnType("float(53)"); // Đảm bảo dùng double, không phải float (Single)
 
                 // Relationship: PhieuCham -> ChuyenDe (Many-to-One)
                 entity.HasOne<ChuyenDeNCKH>()
@@ -204,7 +208,9 @@ namespace QLNCKH_HocVien.Data
             modelBuilder.Entity<XepGiai>(entity =>
             {
                 entity.Property(x => x.TenGiai).HasMaxLength(50);
-                entity.Property(x => x.DiemTrungBinh).HasPrecision(4, 2);
+                entity.Property(x => x.DiemTrungBinh)
+                    .HasPrecision(4, 2)
+                    .HasColumnType("float(53)"); // Đảm bảo dùng double, không phải float (Single)
 
                 // Relationship: XepGiai -> ChuyenDe (One-to-One)
                 entity.HasOne<ChuyenDeNCKH>()

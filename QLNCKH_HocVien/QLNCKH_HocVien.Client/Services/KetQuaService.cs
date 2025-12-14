@@ -21,8 +21,19 @@ namespace QLNCKH_HocVien.Client.Services
         /// </summary>
         public async Task<List<KetQuaSoLoai>> GetSoLoai()
         {
-            var result = await _http.GetFromJsonAsyncWithAuth<ApiResult<List<KetQuaSoLoai>>>("api/KetQua/soloai-all");
-            return result?.Data ?? new List<KetQuaSoLoai>();
+            try
+            {
+                var result = await _http.GetFromJsonAsyncWithAuth<ApiResult<List<KetQuaSoLoai>>>("api/KetQua/soloai-all");
+                return result?.Data ?? new List<KetQuaSoLoai>();
+            }
+            catch (UnauthorizedException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                return new List<KetQuaSoLoai>();
+            }
         }
 
         /// <summary>
@@ -55,17 +66,34 @@ namespace QLNCKH_HocVien.Client.Services
         /// </summary>
         public async Task<ApiResult> SaveSoLoai(KetQuaSoLoai item)
         {
-            var response = await _http.PostAsJsonAsyncWithAuth("api/KetQua/soloai", item);
-            
-            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                throw new UnauthorizedException();
+            try
+            {
+                var response = await _http.PostAsJsonAsyncWithAuth("api/KetQua/soloai", item);
 
-            var result = await response.Content.ReadFromJsonAsync<ApiResult>();
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    throw new UnauthorizedException();
 
-            if (!response.IsSuccessStatusCode && result == null)
-                return ApiResult.Fail($"Lỗi: {response.StatusCode}");
+                var result = await response.Content.ReadFromJsonAsync<ApiResult>();
 
-            return result ?? ApiResult.Fail("Không có response từ server");
+                if (!response.IsSuccessStatusCode)
+                {
+                    if (result != null)
+                        return result;
+                    
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    return ApiResult.Fail($"Lỗi {response.StatusCode}: {errorContent}");
+                }
+
+                return result ?? ApiResult.Fail("Không có response từ server");
+            }
+            catch (HttpRequestException ex)
+            {
+                return ApiResult.Fail($"Lỗi kết nối: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return ApiResult.Fail($"Lỗi: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -74,7 +102,7 @@ namespace QLNCKH_HocVien.Client.Services
         public async Task<ApiResult<int>> AutoTop15()
         {
             var response = await _http.PostAsyncWithAuth("api/KetQua/auto-top15", null);
-            
+
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 throw new UnauthorizedException();
 
@@ -93,8 +121,19 @@ namespace QLNCKH_HocVien.Client.Services
         /// </summary>
         public async Task<List<PhieuCham>> GetAllPhieuCham()
         {
-            var result = await _http.GetFromJsonAsyncWithAuth<ApiResult<List<PhieuCham>>>("api/KetQua/phieucham-all");
-            return result?.Data ?? new List<PhieuCham>();
+            try
+            {
+                var result = await _http.GetFromJsonAsyncWithAuth<ApiResult<List<PhieuCham>>>("api/KetQua/phieucham-all");
+                return result?.Data ?? new List<PhieuCham>();
+            }
+            catch (UnauthorizedException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                return new List<PhieuCham>();
+            }
         }
 
         /// <summary>
@@ -130,17 +169,34 @@ namespace QLNCKH_HocVien.Client.Services
         /// </summary>
         public async Task<ApiResult> SavePhieuCham(PhieuCham item)
         {
-            var response = await _http.PostAsJsonAsyncWithAuth("api/KetQua/phieucham", item);
-            
-            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                throw new UnauthorizedException();
+            try
+            {
+                var response = await _http.PostAsJsonAsyncWithAuth("api/KetQua/phieucham", item);
 
-            var result = await response.Content.ReadFromJsonAsync<ApiResult>();
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    throw new UnauthorizedException();
 
-            if (!response.IsSuccessStatusCode && result == null)
-                return ApiResult.Fail($"Lỗi: {response.StatusCode}");
+                var result = await response.Content.ReadFromJsonAsync<ApiResult>();
 
-            return result ?? ApiResult.Fail("Không có response từ server");
+                if (!response.IsSuccessStatusCode)
+                {
+                    if (result != null)
+                        return result;
+                    
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    return ApiResult.Fail($"Lỗi {response.StatusCode}: {errorContent}");
+                }
+
+                return result ?? ApiResult.Fail("Không có response từ server");
+            }
+            catch (HttpRequestException ex)
+            {
+                return ApiResult.Fail($"Lỗi kết nối: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return ApiResult.Fail($"Lỗi: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -165,20 +221,53 @@ namespace QLNCKH_HocVien.Client.Services
 
         public async Task<List<ChuyenDeNCKH>> GetChuyenDe()
         {
-            var result = await _http.GetFromJsonAsyncWithAuth<ApiResult<List<ChuyenDeNCKH>>>("api/ChuyenDeNCKH");
-            return result?.Data ?? new List<ChuyenDeNCKH>();
+            try
+            {
+                var result = await _http.GetFromJsonAsyncWithAuth<ApiResult<List<ChuyenDeNCKH>>>("api/ChuyenDeNCKH");
+                return result?.Data ?? new List<ChuyenDeNCKH>();
+            }
+            catch (UnauthorizedException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                return new List<ChuyenDeNCKH>();
+            }
         }
 
         public async Task<List<HoiDong>> GetHoiDong()
         {
-            var result = await _http.GetFromJsonAsyncWithAuth<ApiResult<List<HoiDong>>>("api/HoiDong");
-            return result?.Data ?? new List<HoiDong>();
+            try
+            {
+                var result = await _http.GetFromJsonAsyncWithAuth<ApiResult<List<HoiDong>>>("api/HoiDong");
+                return result?.Data ?? new List<HoiDong>();
+            }
+            catch (UnauthorizedException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                return new List<HoiDong>();
+            }
         }
 
         public async Task<List<GiaoVien>> GetGiaoVien()
         {
-            var result = await _http.GetFromJsonAsyncWithAuth<ApiResult<List<GiaoVien>>>("api/GiaoVien");
-            return result?.Data ?? new List<GiaoVien>();
+            try
+            {
+                var result = await _http.GetFromJsonAsyncWithAuth<ApiResult<List<GiaoVien>>>("api/GiaoVien");
+                return result?.Data ?? new List<GiaoVien>();
+            }
+            catch (UnauthorizedException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                return new List<GiaoVien>();
+            }
         }
-    }
+}
 }

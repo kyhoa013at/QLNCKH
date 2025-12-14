@@ -82,8 +82,8 @@ namespace QLNCKH_HocVien.Client.Services
         /// Thêm sinh viên mới
         /// </summary>
         public async Task<ApiResult<SinhVien>> ThemSinhVien(SinhVien sv)
-        {
-            var response = await _http.PostAsJsonAsyncWithAuth("api/SinhVien", sv);
+            {
+                var response = await _http.PostAsJsonAsyncWithAuth("api/SinhVien", sv);
             
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 throw new UnauthorizedException();
@@ -116,7 +116,7 @@ namespace QLNCKH_HocVien.Client.Services
             }
 
             return result ?? ApiResult.Fail("Không có response từ server");
-        }
+            }
 
         /// <summary>
         /// Xóa sinh viên
@@ -124,7 +124,7 @@ namespace QLNCKH_HocVien.Client.Services
         public async Task<ApiResult> XoaSinhVien(int id)
         {
             var response = await _http.DeleteAsyncWithAuth($"api/SinhVien/{id}");
-            
+        
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 throw new UnauthorizedException();
 

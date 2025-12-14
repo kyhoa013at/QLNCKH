@@ -28,7 +28,7 @@ namespace QLNCKH_HocVien.Client.Services
         }
 
         public async Task<List<CapBac>> LayDsCapBac()
-        {
+            {
             var result = await _http.GetFromJsonAsync<ApiResponse<List<CapBac>>>("http://apidanhmuc.6pg.org/api/capbac/getall");
             return result?.Data ?? new List<CapBac>();
         }
@@ -137,7 +137,7 @@ namespace QLNCKH_HocVien.Client.Services
         /// </summary>
         public async Task<ApiResult> CapNhatGiaoVien(GiaoVien gv)
         {
-            var response = await _http.PutAsJsonAsync($"api/GiaoVien/{gv.Id}", gv);
+            var response = await _http.PutAsJsonAsyncWithAuth($"api/GiaoVien/{gv.Id}", gv);
             
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 throw new UnauthorizedException();
