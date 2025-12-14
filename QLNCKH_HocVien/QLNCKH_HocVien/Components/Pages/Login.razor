@@ -1,12 +1,14 @@
 @page "/login"
+@layout QLNCKH_HocVien.Components.Layout.AuthLayout
 @using MudBlazor
 @inject IHttpContextAccessor HttpContextAccessor
 @inject NavigationManager Navigation
 
+<PageTitle>Đăng nhập - QLNCKH</PageTitle>
+
 @if (isAuthenticated)
 {
-    <!-- Nếu đã đăng nhập, hiển thị thông báo và redirect -->
-    <div class="d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="d-flex justify-content-center align-items-center" style="min-height: 100vh;">
         <MudCard Style="max-width: 400px; text-align: center;">
             <MudCardContent>
                 <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Style="font-size: 60px;" />
@@ -84,7 +86,16 @@ else
             </form>
 
             <div class="login-footer mt-4">
-                <small class="text-muted">© 2024 - Hệ thống Quản lý NCKH Học viên</small>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="text-center mb-2">
+                    Chưa có tài khoản?
+                </MudText>
+                <MudButton Variant="Variant.Text" 
+                           Color="Color.Primary" 
+                           FullWidth="true"
+                           Href="/register">
+                    Đăng ký ngay
+                </MudButton>
+                <small class="text-muted d-block text-center mt-3">© 2024 - Hệ thống Quản lý NCKH Học viên</small>
             </div>
         </div>
     </div>
@@ -158,4 +169,3 @@ else
         }
     }
 }
-

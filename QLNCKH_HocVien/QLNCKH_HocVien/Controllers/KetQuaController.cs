@@ -72,8 +72,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.OkResult(kq);
         }
 
-        // POST: api/KetQua/soloai
+        // POST: api/KetQua/soloai (Admin hoặc GiaoVien)
         [HttpPost("soloai")]
+        [Authorize(Roles = "Admin,GiaoVien")]
         public async Task<ActionResult<ApiResult>> SaveSoLoai(KetQuaSoLoai item)
         {
             try
@@ -122,8 +123,9 @@ namespace QLNCKH_HocVien.Controllers
             }
         }
 
-        // POST: api/KetQua/auto-top15
+        // POST: api/KetQua/auto-top15 (Chỉ Admin)
         [HttpPost("auto-top15")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ApiResult<int>>> AutoTop15()
         {
             // 1. Reset toàn bộ về False
@@ -207,8 +209,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.OkResult(data);
         }
 
-        // POST: api/KetQua/phieucham
+        // POST: api/KetQua/phieucham (Admin hoặc GiaoVien)
         [HttpPost("phieucham")]
+        [Authorize(Roles = "Admin,GiaoVien")]
         public async Task<ActionResult<ApiResult>> SavePhieuCham(PhieuCham pc)
         {
             try
@@ -262,8 +265,9 @@ namespace QLNCKH_HocVien.Controllers
             }
         }
 
-        // DELETE: api/KetQua/phieucham/5
+        // DELETE: api/KetQua/phieucham/5 (Admin hoặc GiaoVien)
         [HttpDelete("phieucham/{id}")]
+        [Authorize(Roles = "Admin,GiaoVien")]
         public async Task<ActionResult<ApiResult>> DeletePhieuCham(int id)
         {
             if (id <= 0)

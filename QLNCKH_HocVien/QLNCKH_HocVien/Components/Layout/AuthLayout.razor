@@ -1,0 +1,19 @@
+@inherits LayoutComponentBase
+@using MudBlazor
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider />
+
+<div class="auth-layout">
+    @Body
+</div>
+
+<style>
+    .auth-layout {
+        min-height: 100vh;
+        width: 100%;
+    }
+</style>
+

@@ -81,8 +81,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.OkResult(cd);
         }
 
-        // POST: api/ChuyenDeNCKH
+        // POST: api/ChuyenDeNCKH (Admin hoặc User)
         [HttpPost]
+        [Authorize(Roles = "Admin,User")]
         public async Task<ActionResult<ApiResult<ChuyenDeNCKH>>> Create(ChuyenDeNCKH cd)
         {
             var (isValid, errors) = ValidationHelper.ValidateModel(cd);
@@ -103,8 +104,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.CreatedResult(cd, "Đăng ký chuyên đề thành công");
         }
 
-        // PUT: api/ChuyenDeNCKH/5
+        // PUT: api/ChuyenDeNCKH/5 (Admin hoặc User - chỉ chuyên đề của mình)
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,User")]
         public async Task<ActionResult<ApiResult>> Update(int id, ChuyenDeNCKH cd)
         {
             if (id <= 0)
@@ -131,8 +133,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.OkResult("Cập nhật chuyên đề thành công");
         }
 
-        // DELETE: api/ChuyenDeNCKH/5
+        // DELETE: api/ChuyenDeNCKH/5 (Admin hoặc User - chỉ chuyên đề của mình)
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin,User")]
         public async Task<ActionResult<ApiResult>> Delete(int id)
         {
             if (id <= 0)

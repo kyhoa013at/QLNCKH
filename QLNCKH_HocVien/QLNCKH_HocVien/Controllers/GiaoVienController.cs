@@ -74,8 +74,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.OkResult(gv);
         }
 
-        // POST: api/GiaoVien
+        // POST: api/GiaoVien (Chỉ Admin)
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ApiResult<GiaoVien>>> Create(GiaoVien gv)
         {
             var (isValid, errors) = ValidationHelper.ValidateModel(gv);
@@ -93,8 +94,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.CreatedResult(gv, "Thêm giáo viên thành công");
         }
 
-        // PUT: api/GiaoVien/5
+        // PUT: api/GiaoVien/5 (Chỉ Admin)
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ApiResult>> Update(int id, GiaoVien gv)
         {
             if (id <= 0)
@@ -121,8 +123,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.OkResult("Cập nhật giáo viên thành công");
         }
 
-        // DELETE: api/GiaoVien/5
+        // DELETE: api/GiaoVien/5 (Chỉ Admin)
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ApiResult>> Delete(int id)
         {
             if (id <= 0)

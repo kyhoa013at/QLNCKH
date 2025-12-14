@@ -119,6 +119,30 @@ namespace QLNCKH_HocVien.Client.Services
             public string? UserName { get; set; }
         }
 
+        /// <summary>
+        /// Đăng ký tài khoản mới
+        /// </summary>
+        public async Task<ApiResult> Register(NguoiDung user)
+        {
+            try
+            {
+                var response = await _http.PostAsJsonAsync("api/Auth/register-public", user);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<ApiResult>();
+                    return result ?? ApiResult.Fail("Không có response từ server");
+                }
+
+                var errorResult = await response.Content.ReadFromJsonAsync<ApiResult>();
+                return errorResult ?? ApiResult.Fail($"Lỗi: {response.StatusCode}");
+            }
+            catch (Exception ex)
+            {
+                return ApiResult.Fail($"Lỗi: {ex.Message}");
+            }
+        }
+
         private class ApiMessage
         {
             public string Message { get; set; } = string.Empty;

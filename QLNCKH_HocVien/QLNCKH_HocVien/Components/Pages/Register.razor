@@ -1,0 +1,237 @@
+@page "/register"
+@layout QLNCKH_HocVien.Components.Layout.AuthLayout
+@using MudBlazor
+@using QLNCKH_HocVien.Client.Models
+@using QLNCKH_HocVien.Client.Services
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Navigation
+@inject AuthService AuthService
+@inject ISnackbar Snackbar
+
+<PageTitle>Đăng ký - QLNCKH</PageTitle>
+
+<div class="register-container">
+    <div class="register-card">
+        <div class="register-header">
+            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Large" Color="Color.Success" />
+            <h2>ĐĂNG KÝ TÀI KHOẢN</h2>
+            <p class="text-muted">Tạo tài khoản mới để sử dụng hệ thống</p>
+        </div>
+
+        <MudForm @ref="_form" @bind-IsValid="@_isValid">
+            <MudTextField @bind-Value="_registerForm.TenDangNhap"
+                          Label="Tên đăng nhập"
+                          Variant="Variant.Outlined"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Person"
+                          Class="mb-3"
+                          Required="true"
+                          RequiredError="Vui lòng nhập tên đăng nhập"
+                          HelperText="Từ 3-50 ký tự" />
+
+            <MudTextField @bind-Value="_registerForm.HoTen"
+                          Label="Họ và tên"
+                          Variant="Variant.Outlined"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Badge"
+                          Class="mb-3"
+                          Required="true"
+                          RequiredError="Vui lòng nhập họ tên" />
+
+            <MudTextField @bind-Value="_registerForm.MatKhau"
+                          Label="Mật khẩu"
+                          Variant="Variant.Outlined"
+                          InputType="InputType.Password"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Lock"
+                          Class="mb-3"
+                          Required="true"
+                          RequiredError="Vui lòng nhập mật khẩu"
+                          HelperText="Tối thiểu 6 ký tự" />
+
+            <MudTextField @bind-Value="_confirmPassword"
+                          Label="Xác nhận mật khẩu"
+                          Variant="Variant.Outlined"
+                          InputType="InputType.Password"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Lock"
+                          Class="mb-3"
+                          Required="true"
+                          RequiredError="Vui lòng xác nhận mật khẩu" />
+
+            @if (!string.IsNullOrEmpty(_passwordError))
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-3" Dense="true">
+                    @_passwordError
+                </MudAlert>
+            }
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Success"
+                       FullWidth="true"
+                       Size="Size.Large"
+                       OnClick="HandleRegister"
+                       Disabled="@_isSubmitting">
+                @if (_isSubmitting)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <span>Đang xử lý...</span>
+                }
+                else
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Class="me-2" />
+                    <span>Đăng ký</span>
+                }
+            </MudButton>
+        </MudForm>
+
+        <div class="register-footer mt-4">
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="text-center mb-2">
+                Đã có tài khoản?
+            </MudText>
+            <MudButton Variant="Variant.Text" 
+                       Color="Color.Primary" 
+                       FullWidth="true"
+                       Href="/login">
+                Đăng nhập ngay
+            </MudButton>
+            <small class="text-muted d-block text-center mt-3">© 2024 - Hệ thống Quản lý NCKH Học viên</small>
+        </div>
+    </div>
+</div>
+
+<style>
+    .register-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #4caf50 0%, #388e3c 50%, #2e7d32 100%);
+        padding: 20px;
+    }
+
+    .register-card {
+        background: white;
+        border-radius: 16px;
+        padding: 40px;
+        width: 100%;
+        max-width: 450px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: slideUp 0.5s ease-out;
+    }
+
+    @@keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .register-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .register-header h2 {
+        color: #4caf50;
+        margin: 15px 0 5px;
+        font-weight: 700;
+    }
+
+    .register-footer {
+        text-align: center;
+        border-top: 1px solid #eee;
+        padding-top: 15px;
+    }
+</style>
+
+@code {
+    private MudForm? _form;
+    private bool _isValid = false;
+    private bool _isSubmitting = false;
+    private string _confirmPassword = "";
+    private string _passwordError = "";
+
+    private NguoiDung _registerForm = new()
+    {
+        VaiTro = "User",
+        IsActive = true
+    };
+
+    protected override void OnInitialized()
+    {
+        var httpContext = HttpContextAccessor.HttpContext;
+        var isAuthenticated = httpContext?.User?.Identity?.IsAuthenticated == true;
+        
+        if (isAuthenticated)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+    }
+
+    private async Task HandleRegister()
+    {
+        _passwordError = "";
+
+        // Validate
+        if (string.IsNullOrWhiteSpace(_registerForm.TenDangNhap))
+        {
+            Snackbar.Add("Vui lòng nhập tên đăng nhập", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_registerForm.HoTen))
+        {
+            Snackbar.Add("Vui lòng nhập họ tên", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_registerForm.MatKhau))
+        {
+            Snackbar.Add("Vui lòng nhập mật khẩu", Severity.Warning);
+            return;
+        }
+
+        if (_registerForm.MatKhau.Length < 6)
+        {
+            _passwordError = "Mật khẩu phải có ít nhất 6 ký tự";
+            return;
+        }
+
+        if (_registerForm.MatKhau != _confirmPassword)
+        {
+            _passwordError = "Mật khẩu xác nhận không khớp";
+            return;
+        }
+
+        try
+        {
+            _isSubmitting = true;
+            var result = await AuthService.Register(_registerForm);
+
+            if (result.Success)
+            {
+                Snackbar.Add("Đăng ký thành công! Vui lòng đăng nhập.", Severity.Success);
+                await Task.Delay(1000);
+                Navigation.NavigateTo("/login?registered=1", forceLoad: true);
+            }
+            else
+            {
+                Snackbar.Add(result.Message, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}
+

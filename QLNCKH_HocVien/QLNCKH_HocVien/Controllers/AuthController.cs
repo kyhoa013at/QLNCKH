@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QLNCKH_HocVien.Client.Models;
 using QLNCKH_HocVien.Data;
+using QLNCKH_HocVien.Helpers;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -263,6 +264,54 @@ namespace QLNCKH_HocVien.Controllers
             return Ok(new { Message = "Tạo tài khoản thành công" });
         }
 
+        /// <summary>
+        /// Đăng ký công khai (Public registration)
+        /// </summary>
+        [HttpPost("register-public")]
+        public async Task<ActionResult<ApiResult>> RegisterPublic([FromBody] RegisterRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.TenDangNhap))
+                    return BadRequest(new ApiResult { Success = false, Message = "Vui lòng nhập tên đăng nhập" });
+
+                if (string.IsNullOrWhiteSpace(request.HoTen))
+                    return BadRequest(new ApiResult { Success = false, Message = "Vui lòng nhập họ tên" });
+
+                if (string.IsNullOrWhiteSpace(request.MatKhau))
+                    return BadRequest(new ApiResult { Success = false, Message = "Vui lòng nhập mật khẩu" });
+
+                if (request.MatKhau.Length < 6)
+                    return BadRequest(new ApiResult { Success = false, Message = "Mật khẩu phải có ít nhất 6 ký tự" });
+
+                if (request.TenDangNhap.Length < 3 || request.TenDangNhap.Length > 50)
+                    return BadRequest(new ApiResult { Success = false, Message = "Tên đăng nhập từ 3-50 ký tự" });
+
+                // Kiểm tra tên đăng nhập đã tồn tại
+                if (await _context.NguoiDungs.AnyAsync(u => u.TenDangNhap == request.TenDangNhap))
+                    return BadRequest(new ApiResult { Success = false, Message = "Tên đăng nhập đã tồn tại" });
+
+                var newUser = new NguoiDung
+                {
+                    TenDangNhap = request.TenDangNhap.Trim(),
+                    HoTen = request.HoTen.Trim(),
+                    MatKhau = HashPassword(request.MatKhau),
+                    VaiTro = "User", // Mặc định là User
+                    IsActive = true,
+                    NgayTao = DateTime.Now
+                };
+
+                _context.NguoiDungs.Add(newUser);
+                await _context.SaveChangesAsync();
+
+                return Ok(new ApiResult { Success = true, Message = "Đăng ký thành công! Vui lòng đăng nhập." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResult { Success = false, Message = $"Lỗi: {ex.Message}" });
+            }
+        }
+
         // ========== HELPER METHODS ==========
 
         private static string HashPassword(string password)
@@ -283,6 +332,13 @@ namespace QLNCKH_HocVien.Controllers
     {
         public string MatKhauCu { get; set; } = string.Empty;
         public string MatKhauMoi { get; set; } = string.Empty;
+    }
+
+    public class RegisterRequest
+    {
+        public string TenDangNhap { get; set; } = string.Empty;
+        public string HoTen { get; set; } = string.Empty;
+        public string MatKhau { get; set; } = string.Empty;
     }
 }
 

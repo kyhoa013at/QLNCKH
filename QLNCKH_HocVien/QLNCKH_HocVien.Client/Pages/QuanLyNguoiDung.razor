@@ -1,0 +1,509 @@
+@page "/admin/users"
+@using MudBlazor
+@using QLNCKH_HocVien.Client.Models
+@using QLNCKH_HocVien.Client.Services
+@using QLNCKH_HocVien.Client.Shared
+@using QLNCKH_HocVien.Client.Exceptions
+@inject UserManagementService UserService
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject AuthService AuthService
+
+<PageHeader Title="QUẢN LÝ NGƯỜI DÙNG" 
+            Subtitle="Quản lý quyền và trạng thái tài khoản" 
+            Icon="@Icons.Material.Filled.People">
+</PageHeader>
+
+<MudGrid Spacing="4" Class="mb-4">
+    @* Thống kê *@
+    @if (_userStats != null)
+    {
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="2" Class="pa-4 text-center">
+                <MudText Typo="Typo.h6" Color="Color.Primary">@_userStats.Total</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Tổng số tài khoản</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="2" Class="pa-4 text-center">
+                <MudText Typo="Typo.h6" Color="Color.Success">@_userStats.Active</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Đang hoạt động</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="2" Class="pa-4 text-center">
+                <MudText Typo="Typo.h6" Color="Color.Warning">@_userStats.Admin</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Quản trị viên</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="2" Class="pa-4 text-center">
+                <MudText Typo="Typo.h6" Color="Color.Info">@_userStats.GiaoVien</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Giáo viên</MudText>
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+<MudPaper Elevation="2" Class="pa-4">
+    @* Search & Filter Bar *@
+    <div class="d-flex gap-3 mb-4 flex-wrap">
+        <MudTextField @bind-Value="_searchText"
+                      Placeholder="Tìm kiếm theo tên đăng nhập, họ tên..."
+                      Variant="Variant.Outlined"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true"
+                      OnKeyDown="@(async (e) => { if (e.Key == "Enter") await LoadData(); })"
+                      Style="flex: 1; min-width: 250px;">
+        </MudTextField>
+
+        <MudSelect T="string?" 
+                   Label="Vai trò" 
+                   Variant="Variant.Outlined"
+                   @bind-Value="_selectedRole"
+                   Immediate="true"
+                   OnValueChanged="@((string? _) => LoadData())"
+                   Style="min-width: 150px;">
+            <MudSelectItem Value="@((string?)null)">Tất cả</MudSelectItem>
+            <MudSelectItem Value="@("Admin")">Admin</MudSelectItem>
+            <MudSelectItem Value="@("GiaoVien")">Giáo viên</MudSelectItem>
+            <MudSelectItem Value="@("User")">Học viên</MudSelectItem>
+        </MudSelect>
+
+        <MudSelect T="bool?" 
+                   Label="Trạng thái" 
+                   Variant="Variant.Outlined"
+                   @bind-Value="_selectedStatus"
+                   Immediate="true"
+                   OnValueChanged="@((bool? _) => LoadData())"
+                   Style="min-width: 150px;">
+            <MudSelectItem T="bool?" Value="@((bool?)null)">Tất cả</MudSelectItem>
+            <MudSelectItem T="bool?" Value="@((bool?)true)">Đang hoạt động</MudSelectItem>
+            <MudSelectItem T="bool?" Value="@((bool?)false)">Vô hiệu hóa</MudSelectItem>
+        </MudSelect>
+
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary" 
+                   StartIcon="@Icons.Material.Filled.Refresh"
+                   OnClick="LoadData"
+                   Disabled="@_isLoading">
+            Làm mới
+        </MudButton>
+    </div>
+
+    @* Table *@
+    @if (_isLoading)
+    {
+        <TableSkeleton Rows="5" Columns="7" />
+    }
+    else if (_users == null || !_users.Any())
+    {
+        <MudAlert Severity="Severity.Info" Class="my-4">
+            @if (string.IsNullOrEmpty(_searchText) && string.IsNullOrEmpty(_selectedRole) && !_selectedStatus.HasValue)
+            {
+                <span>Chưa có người dùng nào trong hệ thống.</span>
+            }
+            else
+            {
+                <span>Không tìm thấy người dùng nào phù hợp với bộ lọc.</span>
+            }
+        </MudAlert>
+    }
+    else
+    {
+        <MudTable T="UserDto" 
+                  Items="@_users" 
+                  Hover="true"
+                  Dense="false"
+                  Striped="true"
+                  Elevation="0">
+            <HeaderContent>
+                <MudTh Style="width: 50px;">STT</MudTh>
+                <MudTh>Tên đăng nhập</MudTh>
+                <MudTh>Họ tên</MudTh>
+                <MudTh>Vai trò</MudTh>
+                <MudTh>Trạng thái</MudTh>
+                <MudTh>Ngày tạo</MudTh>
+                <MudTh Style="width: 200px;">Thao tác</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="STT" Style="text-align: center;">
+                    @((_currentPage - 1) * _pageSize + _users.IndexOf(context) + 1)
+                </MudTd>
+                <MudTd DataLabel="Tên đăng nhập">
+                    <MudText Typo="Typo.body2" Style="font-weight: 500;">@context.TenDangNhap</MudText>
+                </MudTd>
+                <MudTd DataLabel="Họ tên">
+                    <MudText Typo="Typo.body2">@(string.IsNullOrEmpty(context.HoTen) ? "-" : context.HoTen)</MudText>
+                </MudTd>
+                <MudTd DataLabel="Vai trò">
+                    <MudChip T="string" 
+                             Color="@GetRoleColor(context.VaiTro)" 
+                             Size="Size.Small"
+                             Variant="Variant.Filled">
+                        @GetRoleName(context.VaiTro)
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Trạng thái">
+                    <MudChip T="string" 
+                             Color="@(context.IsActive ? Color.Success : Color.Error)" 
+                             Size="Size.Small"
+                             Variant="Variant.Filled">
+                        @(context.IsActive ? "Hoạt động" : "Vô hiệu hóa")
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Ngày tạo">
+                    <MudText Typo="Typo.body2">@context.NgayTao.ToString("dd/MM/yyyy HH:mm")</MudText>
+                </MudTd>
+                <MudTd DataLabel="Thao tác">
+                    @if (context.Id != _currentUserId)
+                    {
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" 
+                                 Color="Color.Default" 
+                                 Size="Size.Small"
+                                 AnchorOrigin="Origin.BottomRight"
+                                 TransformOrigin="Origin.TopRight">
+                            <MudMenuItem OnClick="@(() => OpenChangeRoleDialog(context))">
+                                <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Class="mr-2" Size="Size.Small" />
+                                Đổi quyền
+                            </MudMenuItem>
+                            <MudMenuItem OnClick="@(() => ToggleUserStatus(context))">
+                                <MudIcon Icon="@(context.IsActive ? Icons.Material.Filled.Block : Icons.Material.Filled.CheckCircle)" 
+                                         Class="mr-2" 
+                                         Size="Size.Small" />
+                                @(context.IsActive ? "Vô hiệu hóa" : "Kích hoạt")
+                            </MudMenuItem>
+                            <MudDivider />
+                            <MudMenuItem OnClick="@(() => ConfirmDelete(context))" 
+                                         Disabled="@(context.VaiTro == "Admin")">
+                                <MudIcon Icon="@Icons.Material.Filled.Delete" 
+                                         Class="mr-2" 
+                                         Size="Size.Small" 
+                                         Color="Color.Error" />
+                                <MudText Typo="Typo.body2" Color="Color.Error">Xóa</MudText>
+                            </MudMenuItem>
+                        </MudMenu>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Tài khoản của bạn</MudText>
+                    }
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudAlert Severity="Severity.Info" Class="my-4">
+                    Không có dữ liệu
+                </MudAlert>
+            </NoRecordsContent>
+        </MudTable>
+
+        @* Pagination *@
+        @if (_totalPages > 1)
+        {
+            <div class="d-flex justify-center mt-4">
+                <MudPagination Count="@_totalPages" 
+                               Selected="@_currentPage"
+                               SelectedChanged="@((int page) => { _currentPage = page; LoadData(); })"
+                               Variant="Variant.Text"
+                               Color="Color.Primary" />
+            </div>
+        }
+    }
+</MudPaper>
+
+@* Dialog đổi quyền *@
+<MudDialog @bind-Visible="_showRoleDialog" Options="@_roleDialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Đổi quyền người dùng</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body1" Class="mb-3">
+            Chọn quyền mới cho <strong>@_selectedUser?.TenDangNhap</strong>:
+        </MudText>
+        <MudSelect T="string" 
+                   Label="Vai trò" 
+                   Variant="Variant.Outlined"
+                   @bind-Value="_newRole"
+                   Required="true">
+            <MudSelectItem Value="@("Admin")">Admin - Quản trị viên</MudSelectItem>
+            <MudSelectItem Value="@("GiaoVien")">GiaoVien - Giáo viên</MudSelectItem>
+            <MudSelectItem Value="@("User")">User - Học viên</MudSelectItem>
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showRoleDialog = false)">Hủy</MudButton>
+        <MudButton Color="Color.Primary" 
+                   Variant="Variant.Filled" 
+                   OnClick="SaveRoleChange"
+                   Disabled="@(string.IsNullOrEmpty(_newRole) || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Đang lưu...</span>
+            }
+            else
+            {
+                <span>Lưu</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    // Data
+    private List<UserDto> _users = new();
+    private UserStatsDto? _userStats;
+    private UserDto? _selectedUser;
+    private int _currentUserId = 0;
+
+    // Pagination
+    private int _currentPage = 1;
+    private int _pageSize = 10;
+    private int _totalCount = 0;
+    private int _totalPages => (int)Math.Ceiling(_totalCount / (double)_pageSize);
+
+    // Search & Filter
+    private string _searchText = "";
+    private string? _selectedRole = null;
+    private bool? _selectedStatus = null;
+
+    // Dialog
+    private bool _showRoleDialog = false;
+    private string _newRole = "";
+    private DialogOptions _roleDialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true,
+        CloseOnEscapeKey = true,
+        BackdropClick = false
+    };
+
+    // Loading
+    private bool _isLoading = false;
+    private bool _isSaving = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Kiểm tra quyền truy cập
+        var currentUser = await AuthService.GetCurrentUser();
+        if (currentUser == null)
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        if (currentUser.VaiTro != "Admin")
+        {
+            Navigation.NavigateTo("/access-denied", forceLoad: true);
+            return;
+        }
+
+        _currentUserId = currentUser.Id;
+
+        await LoadStats();
+        await LoadData();
+    }
+
+    private async Task LoadStats()
+    {
+        try
+        {
+            _userStats = await UserService.GetUserStatsAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi khi tải thống kê: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _isLoading = true;
+            StateHasChanged();
+
+            var result = await UserService.GetAllUsersAsync(
+                page: _currentPage,
+                pageSize: _pageSize,
+                search: string.IsNullOrWhiteSpace(_searchText) ? null : _searchText,
+                role: _selectedRole,
+                isActive: _selectedStatus);
+
+            if (result != null)
+            {
+                _users = result.Data.ToList();
+                _totalCount = result.TotalCount;
+            }
+            else
+            {
+                _users = new();
+                _totalCount = 0;
+            }
+        }
+        catch (UnauthorizedException)
+        {
+            Navigation.NavigateTo("/access-denied", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi khi tải dữ liệu: {ex.Message}", Severity.Error);
+            _users = new();
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OpenChangeRoleDialog(UserDto user)
+    {
+        _selectedUser = user;
+        _newRole = user.VaiTro;
+        _showRoleDialog = true;
+        StateHasChanged(); // Đảm bảo UI cập nhật
+    }
+
+    private async Task SaveRoleChange()
+    {
+        if (_selectedUser == null || string.IsNullOrEmpty(_newRole))
+            return;
+
+        if (_newRole == _selectedUser.VaiTro)
+        {
+            _showRoleDialog = false;
+            return;
+        }
+
+        try
+        {
+            _isSaving = true;
+            StateHasChanged();
+
+            var result = await UserService.UpdateUserRoleAsync(_selectedUser.Id, _newRole);
+
+            if (result?.Success == true)
+            {
+                Snackbar.Add(result.Message ?? "Cập nhật quyền thành công", Severity.Success);
+                _showRoleDialog = false;
+                await LoadData();
+                await LoadStats();
+            }
+            else
+            {
+                Snackbar.Add(result?.Message ?? "Lỗi khi cập nhật quyền", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleUserStatus(UserDto user)
+    {
+        try
+        {
+            var result = await UserService.UpdateUserStatusAsync(user.Id, !user.IsActive);
+
+            if (result?.Success == true)
+            {
+                Snackbar.Add(result.Message ?? "Cập nhật trạng thái thành công", Severity.Success);
+                await LoadData();
+                await LoadStats();
+            }
+            else
+            {
+                Snackbar.Add(result?.Message ?? "Lỗi khi cập nhật trạng thái", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ConfirmDelete(UserDto user)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.ContentText, $"Bạn có chắc chắn muốn xóa tài khoản '{user.TenDangNhap}'? Hành động này không thể hoàn tác." },
+            { x => x.ConfirmText, "Xóa" },
+            { x => x.CancelText, "Hủy" },
+            { x => x.Icon, Icons.Material.Filled.DeleteForever },
+            { x => x.IconColor, Color.Error },
+            { x => x.ButtonColor, Color.Error }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Xác nhận xóa", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await DeleteUser(user.Id);
+        }
+    }
+
+    private async Task DeleteUser(int id)
+    {
+        try
+        {
+            _isLoading = true;
+            StateHasChanged();
+
+            var result = await UserService.DeleteUserAsync(id);
+
+            if (result?.Success == true)
+            {
+                Snackbar.Add(result.Message ?? "Xóa tài khoản thành công", Severity.Success);
+                await LoadData();
+                await LoadStats();
+            }
+            else
+            {
+                Snackbar.Add(result?.Message ?? "Lỗi khi xóa tài khoản", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetRoleName(string vaiTro)
+    {
+        return vaiTro switch
+        {
+            "Admin" => "Quản trị viên",
+            "GiaoVien" => "Giáo viên",
+            "User" => "Học viên",
+            _ => vaiTro
+        };
+    }
+
+    private Color GetRoleColor(string vaiTro)
+    {
+        return vaiTro switch
+        {
+            "Admin" => Color.Error,
+            "GiaoVien" => Color.Info,
+            "User" => Color.Success,
+            _ => Color.Default
+        };
+    }
+}
+

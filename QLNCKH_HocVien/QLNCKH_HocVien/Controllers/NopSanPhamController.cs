@@ -77,8 +77,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.OkResult(data);
         }
 
-        // POST: api/NopSanPham
+        // POST: api/NopSanPham (Admin hoặc User - chỉ nộp cho chuyên đề của mình)
         [HttpPost]
+        [Authorize(Roles = "Admin,User")]
         public async Task<ActionResult<ApiResult<NopSanPham>>> Create(NopSanPham item)
         {
             if (item.IdChuyenDe <= 0)
@@ -100,8 +101,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.CreatedResult(item, "Nộp sản phẩm thành công");
         }
 
-        // DELETE: api/NopSanPham/5
+        // DELETE: api/NopSanPham/5 (Admin hoặc User - chỉ sản phẩm của mình)
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin,User")]
         public async Task<ActionResult<ApiResult>> Delete(int id)
         {
             if (id <= 0)

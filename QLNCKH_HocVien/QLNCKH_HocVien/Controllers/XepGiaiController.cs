@@ -98,8 +98,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.OkResult<object>(data, "Thống kê xếp giải");
         }
 
-        // POST: api/XepGiai/process
+        // POST: api/XepGiai/process (Chỉ Admin)
         [HttpPost("process")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ApiResult<List<XepGiai>>>> ProcessRanking()
         {
             // 1. Xóa kết quả cũ
@@ -150,8 +151,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.OkResult(danhSachGiai, $"Xếp giải thành công cho {danhSachGiai.Count} chuyên đề");
         }
 
-        // DELETE: api/XepGiai/reset
+        // DELETE: api/XepGiai/reset (Chỉ Admin)
         [HttpDelete("reset")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ApiResult>> ResetRanking()
         {
             var count = await _context.XepGiais.CountAsync();

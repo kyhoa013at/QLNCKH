@@ -92,8 +92,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.OkResult(hd);
         }
 
-        // POST: api/HoiDong
+        // POST: api/HoiDong (Admin hoặc GiaoVien)
         [HttpPost]
+        [Authorize(Roles = "Admin,GiaoVien")]
         public async Task<ActionResult<ApiResult<HoiDong>>> Create(HoiDong hd)
         {
             if (hd.IdChuyenDe <= 0)
@@ -122,8 +123,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.CreatedResult(hd, "Tạo hội đồng thành công");
         }
 
-        // PUT: api/HoiDong/5
+        // PUT: api/HoiDong/5 (Admin hoặc GiaoVien)
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,GiaoVien")]
         public async Task<ActionResult<ApiResult>> Update(int id, HoiDong hd)
         {
             if (id <= 0)
@@ -162,8 +164,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.OkResult("Cập nhật hội đồng thành công");
         }
 
-        // DELETE: api/HoiDong/5
+        // DELETE: api/HoiDong/5 (Admin hoặc GiaoVien)
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin,GiaoVien")]
         public async Task<ActionResult<ApiResult>> Delete(int id)
         {
             if (id <= 0)

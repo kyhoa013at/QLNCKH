@@ -79,8 +79,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.OkResult(sv);
         }
 
-        // POST: api/SinhVien (Thêm mới)
+        // POST: api/SinhVien (Thêm mới - Chỉ Admin)
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ApiResult<SinhVien>>> CreateSinhVien(SinhVien sv)
         {
             // Server-side validation
@@ -101,8 +102,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.CreatedResult(sv, "Thêm sinh viên thành công");
         }
 
-        // PUT: api/SinhVien/5 (Cập nhật)
+        // PUT: api/SinhVien/5 (Cập nhật - Chỉ Admin)
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ApiResult>> UpdateSinhVien(int id, SinhVien sv)
         {
             if (id <= 0) 
@@ -131,8 +133,9 @@ namespace QLNCKH_HocVien.Controllers
             return this.OkResult("Cập nhật sinh viên thành công");
         }
 
-        // DELETE: api/SinhVien/5 (Xóa theo ID)
+        // DELETE: api/SinhVien/5 (Xóa theo ID - Chỉ Admin)
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ApiResult>> DeleteSinhVien(int id)
         {
             if (id <= 0) 

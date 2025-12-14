@@ -7,11 +7,12 @@
 @inject KetQuaService KqService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject AuthService AuthService
 
 <PageHeader Title="CẬP NHẬT KẾT QUẢ CHẤM" 
             Subtitle="Cập nhật điểm chấm cho vòng Sơ Loại và Chung Khảo" 
             Icon="@Icons.Material.Filled.Assessment">
-    @if (_activeTab == 1)
+    @if (_activeTab == 1 && _isAdmin)
     {
         <MudButton Variant="Variant.Filled" 
                    Color="Color.Warning" 
@@ -250,6 +251,10 @@ else
 }
 
 @code {
+    // Authorization - khai báo trước để dùng trong template
+    private bool _isAdmin = false;
+    private bool _isGiaoVien = false;
+
     private int _activeTab = 1;
     private List<ChuyenDeNCKH> _dsChuyenDe = new();
     private List<KetQuaSoLoai> _dsKqSoLoai = new();
@@ -263,6 +268,25 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        // Kiểm tra quyền truy cập
+        var currentUser = await AuthService.GetCurrentUser();
+        if (currentUser == null)
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        _isAdmin = currentUser.VaiTro == "Admin";
+        _isGiaoVien = currentUser.VaiTro == "GiaoVien";
+        StateHasChanged(); // Cập nhật UI sau khi set _isAdmin
+
+        // Chỉ Admin và GiaoVien được xem trang này
+        if (!_isAdmin && !_isGiaoVien)
+        {
+            Navigation.NavigateTo("/access-denied", forceLoad: true);
+            return;
+        }
+
         try
         {
             await LoadData();

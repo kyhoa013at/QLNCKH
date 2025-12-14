@@ -8,32 +8,36 @@
 @inject NavigationManager Navigation
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject AuthService AuthService
 
 <PageHeader Title="BẢNG XẾP HẠNG & TRAO GIẢI" 
             Subtitle="Xem và quản lý kết quả xếp hạng chuyên đề nghiên cứu khoa học" 
             Icon="@Icons.Material.Filled.EmojiEvents">
-    <MudButton Variant="Variant.Filled" 
-               Color="Color.Warning" 
-               StartIcon="@Icons.Material.Filled.AutoAwesome"
-               OnClick="XuLyXepGiai"
-               Disabled="@_isProcessing">
-        @if (_isProcessing)
-        {
-            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-            <span>Đang xử lý...</span>
-        }
-        else
-        {
-            <span>Tổng hợp & Xếp giải</span>
-        }
-    </MudButton>
-    <MudButton Variant="Variant.Outlined" 
-               Color="Color.Error" 
-               StartIcon="@Icons.Material.Filled.Refresh"
-               OnClick="ConfirmReset"
-               Disabled="@(_isProcessing || _dsKetQua.Count == 0)">
-        Reset kết quả
-    </MudButton>
+    @if (_isAdmin)
+    {
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Warning" 
+                   StartIcon="@Icons.Material.Filled.AutoAwesome"
+                   OnClick="XuLyXepGiai"
+                   Disabled="@_isProcessing">
+            @if (_isProcessing)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Đang xử lý...</span>
+            }
+            else
+            {
+                <span>Tổng hợp & Xếp giải</span>
+            }
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" 
+                   Color="Color.Error" 
+                   StartIcon="@Icons.Material.Filled.Refresh"
+                   OnClick="ConfirmReset"
+                   Disabled="@(_isProcessing || _dsKetQua.Count == 0)">
+            Reset kết quả
+        </MudButton>
+    }
 </PageHeader>
 
 <MudPaper Elevation="2" Class="pa-4">
@@ -233,6 +237,9 @@
 </MudPaper>
 
 @code {
+    // Authorization - khai báo trước để dùng trong template
+    private bool _isAdmin = false;
+
     private List<XepGiai> _dsKetQua = new();
     private List<ChuyenDeNCKH> _dsChuyenDe = new();
     private List<SinhVien> _dsSinhVien = new();
@@ -256,6 +263,17 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Kiểm tra quyền truy cập (Tất cả đều có thể xem)
+        var currentUser = await AuthService.GetCurrentUser();
+        if (currentUser == null)
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        _isAdmin = currentUser.VaiTro == "Admin";
+        StateHasChanged(); // Cập nhật UI sau khi set _isAdmin
+
         try
         {
             await LoadData();

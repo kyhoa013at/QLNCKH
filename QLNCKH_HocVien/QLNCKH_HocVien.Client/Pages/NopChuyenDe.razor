@@ -8,17 +8,22 @@
 @inject NavigationManager Navigation
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject AuthService AuthService
 
 <PageHeader Title="NỘP SẢN PHẨM CHUYÊN ĐỀ" 
             Subtitle="Nộp và quản lý sản phẩm chuyên đề nghiên cứu khoa học" 
             Icon="@Icons.Material.Filled.Upload">
-    <MudButton Variant="Variant.Filled" 
-               Color="Color.Surface" 
-               StartIcon="@Icons.Material.Filled.Add"
-               OnClick="OpenAddDialog"
-               Disabled="@_isLoading">
-        Nộp sản phẩm
-    </MudButton>
+    @if (_isAdmin || _isHocVien)
+    {
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Surface" 
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenAddDialog"
+                   Disabled="@_isLoading"
+                   Style="color: white;">
+            Nộp sản phẩm
+        </MudButton>
+    }
 </PageHeader>
 
 <MudPaper Elevation="2" Class="pa-4">
@@ -149,10 +154,13 @@
                                            Size="Size.Small" />
                         </MudTooltip>
                     }
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                   Color="Color.Error" 
-                                   Size="Size.Small"
-                                   OnClick="@(() => ConfirmDelete(context))" />
+                    @if (_isAdmin || (_isHocVien && CanDeleteNop(context)))
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                       Color="Color.Error" 
+                                       Size="Size.Small"
+                                       OnClick="@(() => ConfirmDelete(context))" />
+                    }
                 </MudTd>
             </RowTemplate>
             <NoRecordsContent>
@@ -293,6 +301,11 @@
     // Loading
     private bool _isLoading = false;
 
+    // Authorization
+    private bool _isAdmin = false;
+    private bool _isHocVien = false;
+    private int _currentUserId = 0;
+
     // Dialog options
     private DialogOptions _dialogOptions = new()
     {
@@ -304,6 +317,21 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Kiểm tra quyền truy cập
+        var currentUser = await AuthService.GetCurrentUser();
+        if (currentUser == null)
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        _isAdmin = currentUser.VaiTro == "Admin";
+        _isHocVien = currentUser.VaiTro == "User";
+        _currentUserId = currentUser.Id;
+        StateHasChanged(); // Cập nhật UI sau khi set authorization
+
+        // Tất cả đều có thể xem, nhưng chỉ Admin và User có thể nộp
+
         try
         {
             // Load catalogs in parallel
@@ -463,6 +491,14 @@
         {
             await DeleteNop(nop.Id);
         }
+    }
+
+    private bool CanDeleteNop(NopSanPham nop)
+    {
+        // User chỉ có thể xóa sản phẩm của chuyên đề của mình
+        // Cần kiểm tra IdHocVien của chuyên đề
+        // Tạm thời cho phép nếu là User (sẽ kiểm tra ở server)
+        return _isHocVien;
     }
 
     private async Task DeleteNop(int id)

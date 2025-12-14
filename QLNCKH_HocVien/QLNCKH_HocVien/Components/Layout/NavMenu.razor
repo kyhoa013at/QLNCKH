@@ -1,4 +1,7 @@
-﻿<MudNavMenu Bordered="true" Color="Color.Primary" Class="py-2">
+﻿@using System.Security.Claims
+@inject IHttpContextAccessor HttpContextAccessor
+
+<MudNavMenu Bordered="true" Color="Color.Primary" Class="py-2">
     <MudNavLink Href="" 
                 Match="NavLinkMatch.All" 
                 Icon="@Icons.Material.Filled.Dashboard"
@@ -6,23 +9,35 @@
         Trang chủ
     </MudNavLink>
 
+    @if (_isAdmin)
+    {
+        <MudNavLink Href="admin" 
+                    Icon="@Icons.Material.Filled.AdminPanelSettings"
+                    IconColor="Color.Error">
+            Admin Dashboard
+        </MudNavLink>
+    }
+
     <MudDivider Class="my-2" />
 
-    <MudNavGroup Title="Danh mục & Hồ sơ" 
-                 Icon="@Icons.Material.Filled.FolderShared" 
-                 IconColor="Color.Info"
-                 Expanded="true">
-        <MudNavLink Href="quanlysinhvien" 
-                    Icon="@Icons.Material.Filled.School"
-                    IconColor="Color.Primary">
-            Quản lý Sinh viên
-        </MudNavLink>
-        <MudNavLink Href="quanlygiaovien" 
-                    Icon="@Icons.Material.Filled.SupervisorAccount"
-                    IconColor="Color.Secondary">
-            Quản lý Giáo viên
-        </MudNavLink>
-    </MudNavGroup>
+    @if (_isAdmin || _isGiaoVien)
+    {
+        <MudNavGroup Title="Danh mục & Hồ sơ" 
+                     Icon="@Icons.Material.Filled.FolderShared" 
+                     IconColor="Color.Info"
+                     Expanded="true">
+            <MudNavLink Href="quanlysinhvien" 
+                        Icon="@Icons.Material.Filled.School"
+                        IconColor="Color.Primary">
+                Quản lý Sinh viên
+            </MudNavLink>
+            <MudNavLink Href="quanlygiaovien" 
+                        Icon="@Icons.Material.Filled.SupervisorAccount"
+                        IconColor="Color.Secondary">
+                Quản lý Giáo viên
+            </MudNavLink>
+        </MudNavGroup>
+    }
 
     <MudDivider Class="my-2" />
 
@@ -30,16 +45,27 @@
                  Icon="@Icons.Material.Filled.MenuBook" 
                  IconColor="Color.Success"
                  Expanded="true">
-        <MudNavLink Href="dangkychuyende" 
-                    Icon="@Icons.Material.Filled.AppRegistration"
-                    IconColor="Color.Success">
-            Đăng ký Chuyên đề
-        </MudNavLink>
-        <MudNavLink Href="nopchuyende" 
-                    Icon="@Icons.Material.Filled.CloudUpload"
-                    IconColor="Color.Info">
-            Nộp sản phẩm
-        </MudNavLink>
+        @if (_isAdmin || _isHocVien)
+        {
+            <MudNavLink Href="dangkychuyende" 
+                        Icon="@Icons.Material.Filled.AppRegistration"
+                        IconColor="Color.Success">
+                Đăng ký Chuyên đề
+            </MudNavLink>
+            <MudNavLink Href="nopchuyende" 
+                        Icon="@Icons.Material.Filled.CloudUpload"
+                        IconColor="Color.Info">
+                Nộp sản phẩm
+            </MudNavLink>
+        }
+        @if (_isGiaoVien && !_isAdmin && !_isHocVien)
+        {
+            <MudNavLink Href="dangkychuyende" 
+                        Icon="@Icons.Material.Filled.AppRegistration"
+                        IconColor="Color.Success">
+                Xem Chuyên đề
+            </MudNavLink>
+        }
     </MudNavGroup>
 
     <MudDivider Class="my-2" />
@@ -48,20 +74,49 @@
                  Icon="@Icons.Material.Filled.Stars" 
                  IconColor="Color.Warning"
                  Expanded="true">
-        <MudNavLink Href="laphoidong" 
-                    Icon="@Icons.Material.Filled.Groups"
-                    IconColor="Color.Tertiary">
-            Lập Hội đồng
-        </MudNavLink>
-        <MudNavLink Href="capnhatketqua" 
-                    Icon="@Icons.Material.Filled.Grading"
-                    IconColor="Color.Warning">
-            Chấm điểm
-        </MudNavLink>
-        <MudNavLink Href="xepgiai" 
-                    Icon="@Icons.Material.Filled.EmojiEvents"
-                    IconColor="Color.Error">
-            Xếp giải
-        </MudNavLink>
+        @if (_isAdmin || _isGiaoVien)
+        {
+            <MudNavLink Href="laphoidong" 
+                        Icon="@Icons.Material.Filled.Groups"
+                        IconColor="Color.Tertiary">
+                Lập Hội đồng
+            </MudNavLink>
+            <MudNavLink Href="capnhatketqua" 
+                        Icon="@Icons.Material.Filled.Grading"
+                        IconColor="Color.Warning">
+                Chấm điểm
+            </MudNavLink>
+        }
+        @if (_isAdmin)
+        {
+            <MudNavLink Href="xepgiai" 
+                        Icon="@Icons.Material.Filled.EmojiEvents"
+                        IconColor="Color.Error">
+                Xếp giải
+            </MudNavLink>
+        }
+        @if (_isHocVien)
+        {
+            <MudNavLink Href="xepgiai" 
+                        Icon="@Icons.Material.Filled.EmojiEvents"
+                        IconColor="Color.Error">
+                Xem kết quả
+            </MudNavLink>
+        }
     </MudNavGroup>
 </MudNavMenu>
+
+@code {
+    private bool _isAdmin = false;
+    private bool _isGiaoVien = false;
+    private bool _isHocVien = false;
+
+    protected override void OnInitialized()
+    {
+        var httpContext = HttpContextAccessor.HttpContext;
+        var role = httpContext?.User?.FindFirst(ClaimTypes.Role)?.Value;
+        _isAdmin = role == "Admin";
+        _isGiaoVien = role == "GiaoVien";
+        _isHocVien = role == "User";
+    }
+}

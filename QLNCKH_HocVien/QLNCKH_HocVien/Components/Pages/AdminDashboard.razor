@@ -1,0 +1,412 @@
+@page "/admin"
+@page "/admin/dashboard"
+@using MudBlazor
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using QLNCKH_HocVien.Client.Services
+@using QLNCKH_HocVien.Client.Models
+@using QLNCKH_HocVien.Client.Exceptions
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Navigation
+@inject SinhVienService SinhVienService
+@inject GiaoVienService GiaoVienService
+@inject ChuyenDeNCKHService ChuyenDeService
+@inject XepGiaiService XepGiaiService
+@inject DashboardService DashboardService
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Admin Dashboard - QLNCKH</PageTitle>
+
+<PageHeader Title="ADMIN DASHBOARD" 
+            Subtitle="Quản lý và giám sát hệ thống" 
+            Icon="@Icons.Material.Filled.AdminPanelSettings">
+    <!-- <MudButton Variant="Variant.Outlined" 
+               Color="Color.Primary" 
+               StartIcon="@Icons.Material.Filled.Settings"
+               Href="/admin/settings">
+        Cài đặt
+    </MudButton> -->
+</PageHeader>
+
+<MudGrid Spacing="4">
+    @* Admin Welcome *@
+    <MudItem xs="12">
+        <MudPaper Elevation="3" Class="pa-6" Style="background: linear-gradient(135deg, #d32f2f 0%, #c62828 50%, #b71c1c 100%); border-radius: 16px;">
+            <div class="d-flex justify-space-between align-center flex-wrap gap-4">
+                <div>
+                    <MudText Typo="Typo.h4" Style="color: white; font-weight: 700;">
+                        Xin chào, @_userName! 👋
+                    </MudText>
+                    <MudText Typo="Typo.subtitle1" Style="color: rgba(255,255,255,0.85);" Class="mt-2">
+                        Bảng điều khiển Quản trị viên
+                    </MudText>
+                    <MudText Typo="Typo.body2" Style="color: rgba(255,255,255,0.7);" Class="mt-1">
+                        @DateTime.Now.ToString("dddd, dd MMMM yyyy", new System.Globalization.CultureInfo("vi-VN"))
+                    </MudText>
+                </div>
+                <MudAvatar Size="Size.Large" Style="background: rgba(255,255,255,0.2); width: 80px; height: 80px;">
+                    <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Size="Size.Large" Style="color: white;" />
+                </MudAvatar>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    @* Statistics Cards *@
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="2" Class="pa-4 d-flex align-center gap-3" Style="border-radius: 12px;">
+            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Large">
+                <MudIcon Icon="@Icons.Material.Filled.School" />
+            </MudAvatar>
+            <div>
+                @if (_isLoading)
+                {
+                    <MudSkeleton Width="60px" Height="32px" Animation="Animation.Wave" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.h5" Color="Color.Primary">@_tongSinhVien</MudText>
+                }
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Sinh viên</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="2" Class="pa-4 d-flex align-center gap-3" Style="border-radius: 12px;">
+            <MudAvatar Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Large">
+                <MudIcon Icon="@Icons.Material.Filled.SupervisorAccount" />
+            </MudAvatar>
+            <div>
+                @if (_isLoading)
+                {
+                    <MudSkeleton Width="60px" Height="32px" Animation="Animation.Wave" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.h5" Color="Color.Secondary">@_tongGiaoVien</MudText>
+                }
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Giáo viên</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="2" Class="pa-4 d-flex align-center gap-3" Style="border-radius: 12px;">
+            <MudAvatar Color="Color.Success" Variant="Variant.Filled" Size="Size.Large">
+                <MudIcon Icon="@Icons.Material.Filled.MenuBook" />
+            </MudAvatar>
+            <div>
+                @if (_isLoading)
+                {
+                    <MudSkeleton Width="60px" Height="32px" Animation="Animation.Wave" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.h5" Color="Color.Success">@_tongChuyenDe</MudText>
+                }
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Chuyên đề</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="2" Class="pa-4 d-flex align-center gap-3" Style="border-radius: 12px;">
+            <MudAvatar Color="Color.Warning" Variant="Variant.Filled" Size="Size.Large">
+                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" />
+            </MudAvatar>
+            <div>
+                @if (_isLoading)
+                {
+                    <MudSkeleton Width="60px" Height="32px" Animation="Animation.Wave" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.h5" Color="Color.Warning">@_tongXepGiai</MudText>
+                }
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Đã xếp giải</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    @* Quick Admin Actions *@
+    <MudItem xs="12" md="6">
+        <MudPaper Elevation="2" Class="pa-4" Style="border-radius: 12px;">
+            <MudText Typo="Typo.h6" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.Speed" Class="mr-2" />
+                Thao tác quản trị
+            </MudText>
+            <MudGrid Spacing="2">
+                <MudItem xs="6">
+                    <MudButton Variant="Variant.Outlined" 
+                               Color="Color.Primary" 
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.PersonAdd"
+                               Href="/quanlysinhvien"
+                               Class="py-3">
+                        Quản lý Sinh viên
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudButton Variant="Variant.Outlined" 
+                               Color="Color.Secondary" 
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.SupervisorAccount"
+                               Href="/quanlygiaovien"
+                               Class="py-3">
+                        Quản lý Giáo viên
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudButton Variant="Variant.Outlined" 
+                               Color="Color.Success" 
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.MenuBook"
+                               Href="/dangkychuyende"
+                               Class="py-3">
+                        Quản lý Chuyên đề
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudButton Variant="Variant.Outlined" 
+                               Color="Color.Warning" 
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Grading"
+                               Href="/capnhatketqua"
+                               Class="py-3">
+                        Chấm điểm
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudButton Variant="Variant.Outlined" 
+                               Color="Color.Error" 
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.People"
+                               Href="/admin/users"
+                               Class="py-3">
+                        Quản lý Người dùng
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudItem>
+
+    @* System Status *@
+    <MudItem xs="12" md="6">
+        <MudPaper Elevation="2" Class="pa-4" Style="border-radius: 12px;">
+            <MudText Typo="Typo.h6" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" />
+                Trạng thái hệ thống
+            </MudText>
+            <MudList T="string" Dense="true">
+                <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                    <div class="d-flex justify-space-between">
+                        <span>Database</span>
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small">Hoạt động</MudChip>
+                    </div>
+                </MudListItem>
+                <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                    <div class="d-flex justify-space-between">
+                        <span>API Services</span>
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small">Hoạt động</MudChip>
+                    </div>
+                </MudListItem>
+                <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                    <div class="d-flex justify-space-between">
+                        <span>Authentication</span>
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small">Hoạt động</MudChip>
+                    </div>
+                </MudListItem>
+            </MudList>
+        </MudPaper>
+    </MudItem>
+
+    @* Recent Activities *@
+    <MudItem xs="12">
+        <MudPaper Elevation="2" Class="pa-4" Style="border-radius: 12px;">
+            <MudText Typo="Typo.h6" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" />
+                Hoạt động gần đây
+            </MudText>
+            @if (_isLoadingActivities)
+            {
+                <MudList T="string" Dense="true">
+                    @for (int i = 0; i < 4; i++)
+                    {
+                        <MudListItem T="string">
+                            <MudSkeleton Height="40px" Width="100%" Animation="Animation.Wave" />
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+            else if (_recentActivities.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info">Chưa có hoạt động nào</MudAlert>
+            }
+            else
+            {
+                <div>
+                    @foreach (var activity in _recentActivities)
+                    {
+                        <div class="d-flex align-center gap-3 mb-3 pb-3" style="border-bottom: 1px solid rgba(0,0,0,0.12);">
+                            <MudIcon Icon="@GetIcon(activity.Icon)" Color="@GetColor(activity.IconColor)" Size="Size.Medium" />
+                            <div style="flex: 1;">
+                                <MudText Typo="Typo.body2" Style="font-weight: 500;">@activity.Title</MudText>
+                                @if (!string.IsNullOrEmpty(activity.Description))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@activity.Description</MudText>
+                                }
+                            </div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@activity.TimeAgo</MudText>
+                        </div>
+                    }
+                </div>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private string _userName = "Admin";
+    private int _tongSinhVien = 0;
+    private int _tongGiaoVien = 0;
+    private int _tongChuyenDe = 0;
+    private int _tongXepGiai = 0;
+    private bool _isLoading = true;
+    private bool _isLoadingActivities = true;
+    private List<RecentActivity> _recentActivities = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var httpContext = HttpContextAccessor.HttpContext;
+        if (httpContext?.User?.Identity?.IsAuthenticated == true)
+        {
+            _userName = httpContext.User.FindFirst(ClaimTypes.GivenName)?.Value ?? 
+                       httpContext.User.Identity?.Name ?? "Admin";
+            
+            // Kiểm tra quyền Admin
+            var role = httpContext.User.FindFirst(ClaimTypes.Role)?.Value;
+            if (role != "Admin")
+            {
+                Navigation.NavigateTo("/access-denied", forceLoad: true);
+                return;
+            }
+        }
+        else
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        await Task.WhenAll(LoadStatistics(), LoadRecentActivities());
+    }
+
+    private async Task LoadRecentActivities()
+    {
+        try
+        {
+            _isLoadingActivities = true;
+            StateHasChanged();
+
+            _recentActivities = await DashboardService.GetRecentActivities(10);
+        }
+        catch (UnauthorizedException)
+        {
+            Navigation.NavigateTo("/access-denied", forceLoad: true);
+        }
+        catch (Exception)
+        {
+            // Ignore errors
+        }
+        finally
+        {
+            _isLoadingActivities = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadStatistics()
+    {
+        try
+        {
+            _isLoading = true;
+            StateHasChanged();
+
+            var t1 = LoadCountAsync(async () => 
+            {
+                var list = await SinhVienService.LayTatCaSinhVien();
+                _tongSinhVien = list.Count;
+            });
+            var t2 = LoadCountAsync(async () => 
+            {
+                var list = await GiaoVienService.LayTatCaGiaoVien();
+                _tongGiaoVien = list.Count;
+            });
+            var t3 = LoadCountAsync(async () => 
+            {
+                var list = await ChuyenDeService.LayDsChuyenDe();
+                _tongChuyenDe = list.Count;
+            });
+            var t4 = LoadCountAsync(async () => 
+            {
+                var list = await XepGiaiService.LayKetQua();
+                _tongXepGiai = list.Count;
+            });
+
+            await Task.WhenAll(t1, t2, t3, t4);
+        }
+        catch (UnauthorizedException)
+        {
+            Navigation.NavigateTo("/access-denied", forceLoad: true);
+        }
+        catch (Exception)
+        {
+            // Ignore errors
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadCountAsync(Func<Task> action)
+    {
+        try 
+        { 
+            await action(); 
+        } 
+        catch 
+        { 
+            // Ignore individual errors
+        }
+    }
+
+    private string GetIcon(string iconName)
+    {
+        return iconName switch
+        {
+            "PersonAdd" => Icons.Material.Filled.PersonAdd,
+            "NoteAdd" => Icons.Material.Filled.NoteAdd,
+            "CloudUpload" => Icons.Material.Filled.CloudUpload,
+            "Groups" => Icons.Material.Filled.Groups,
+            "Grading" => Icons.Material.Filled.Grading,
+            "EmojiEvents" => Icons.Material.Filled.EmojiEvents,
+            _ => Icons.Material.Filled.Info
+        };
+    }
+
+    private Color GetColor(string colorName)
+    {
+        return colorName switch
+        {
+            "Primary" => Color.Primary,
+            "Success" => Color.Success,
+            "Info" => Color.Info,
+            "Warning" => Color.Warning,
+            "Error" => Color.Error,
+            "Tertiary" => Color.Tertiary,
+            _ => Color.Default
+        };
+    }
+}
+

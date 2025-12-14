@@ -8,6 +8,7 @@
 @inject NavigationManager Navigation
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject AuthService AuthService
 
 <PageHeader Title="LẬP HỘI ĐỒNG CHẤM" 
             Subtitle="Phân công người chấm và thành lập hội đồng chấm" 
@@ -291,8 +292,30 @@
     private MudForm? _form;
     private int _activeTabIndex = 0;
 
+    // Authorization
+    private bool _isAdmin = false;
+    private bool _isGiaoVien = false;
+
     protected override async Task OnInitializedAsync()
     {
+        // Kiểm tra quyền truy cập
+        var currentUser = await AuthService.GetCurrentUser();
+        if (currentUser == null)
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        _isAdmin = currentUser.VaiTro == "Admin";
+        _isGiaoVien = currentUser.VaiTro == "GiaoVien";
+
+        // Chỉ Admin và GiaoVien được xem trang này
+        if (!_isAdmin && !_isGiaoVien)
+        {
+            Navigation.NavigateTo("/access-denied", forceLoad: true);
+            return;
+        }
+
         try
         {
             var tasks = new[]

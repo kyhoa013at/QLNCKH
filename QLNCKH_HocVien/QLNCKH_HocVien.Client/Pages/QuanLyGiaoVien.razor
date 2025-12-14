@@ -8,17 +8,22 @@
 @inject NavigationManager Navigation
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject AuthService AuthService
 
 <PageHeader Title="QUẢN LÝ GIÁO VIÊN" 
             Subtitle="Danh sách và quản lý thông tin giáo viên" 
             Icon="@Icons.Material.Filled.Person">
-    <MudButton Variant="Variant.Filled" 
-               Color="Color.Surface" 
-               StartIcon="@Icons.Material.Filled.Add"
-               OnClick="OpenAddDialog"
-               Disabled="@_isLoading">
-        Thêm giáo viên
-    </MudButton>
+    @if (_isAdmin)
+    {
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Surface" 
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenAddDialog"
+                   Disabled="@_isLoading"
+                   Style="color: white;">
+            Thêm giáo viên
+        </MudButton>
+    }
 </PageHeader>
 
 <MudPaper Elevation="2" Class="pa-4">
@@ -118,14 +123,21 @@
                     </div>
                 </MudTd>
                 <MudTd DataLabel="Thao tác">
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit" 
-                                   Color="Color.Primary" 
-                                   Size="Size.Small"
-                                   OnClick="@(() => OpenEditDialog(context))" />
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                   Color="Color.Error" 
-                                   Size="Size.Small"
-                                   OnClick="@(() => ConfirmDelete(context))" />
+                    @if (_isAdmin)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                       Color="Color.Primary" 
+                                       Size="Size.Small"
+                                       OnClick="@(() => OpenEditDialog(context))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                       Color="Color.Error" 
+                                       Size="Size.Small"
+                                       OnClick="@(() => ConfirmDelete(context))" />
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Chỉ xem</MudText>
+                    }
                 </MudTd>
             </RowTemplate>
             <NoRecordsContent>
@@ -411,6 +423,10 @@
     // Loading
     private bool _isLoading = false;
 
+    // Authorization
+    private bool _isAdmin = false;
+    private bool _isGiaoVien = false;
+
     // Dialog options
     private DialogOptions _dialogOptions = new()
     {
@@ -422,6 +438,24 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Kiểm tra quyền truy cập
+        var currentUser = await AuthService.GetCurrentUser();
+        if (currentUser == null)
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        _isAdmin = currentUser.VaiTro == "Admin";
+        _isGiaoVien = currentUser.VaiTro == "GiaoVien";
+
+        // Chỉ Admin và GiaoVien được xem trang này
+        if (!_isAdmin && !_isGiaoVien)
+        {
+            Navigation.NavigateTo("/access-denied", forceLoad: true);
+            return;
+        }
+
         try
         {
             // Load catalogs in parallel

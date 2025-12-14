@@ -127,6 +127,7 @@ builder.Services.AddScoped<KetQuaService>();
 builder.Services.AddScoped<XepGiaiService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<UserManagementService>();
 
 // ========== CONTROLLERS & MUD BLAZOR ==========
 builder.Services.AddControllers();
